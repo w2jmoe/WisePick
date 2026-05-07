@@ -266,3 +266,21 @@ execution outcomes can become shared capability experience.
 **From prompt guessing → to collective decision memory**
 
 **从 Prompt 猜测 → 到共享决策记忆**
+
+---
+
+## 🤗 Feedback & Integration
+
+If you integrate WisePick, feel free to share your use case, routing results, or failure cases.
+
+欢迎接入智选 API。
+如果遇到 routing 问题、失败案例、或真实 Agent 使用场景，也欢迎反馈。
+
+- Issues: GitHub Issues
+- Email: w2jmoe@gmail.com
+
+Real execution feedback helps improve capability routing for future agents.
+
+真实执行反馈会帮助未来 Agent 获得更好的能力路由哦！˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗
+
+---
