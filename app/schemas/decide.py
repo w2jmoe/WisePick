@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field
 
 class DecideRequest(BaseModel):
     task: str = Field(..., description="需要完成的任务描述")
-    context: dict[str, Any] | None = Field(default=None, description="任务上下�?)
-    constraints: dict[str, Any] | None = Field(default=None, description="限制条件，例�?china_available: true")
+    context: dict[str, Any] | None = Field(default=None, description="任务上下文")
+    constraints: dict[str, Any] | None = Field(default=None, description="限制条件，例如 china_available: true")
 
 
 class DecideResponse(BaseModel):

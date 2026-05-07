@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
-from app.models.tool_spec import ApiToolSpec  # noqa: F401 �?�?Base 注册模型
+from app.models.tool_spec import ApiToolSpec  # noqa: F401 用于 Base 注册模型
 from app.models.decision import Decision  # noqa: F401
 from app.models.feedback import Feedback  # noqa: F401
 from app.routers import decide
@@ -80,7 +80,7 @@ def seed_tools(db: Session) -> None:
 
 
 def _migrate_api_decision_logs_observability_columns() -> None:
-    """PostgreSQL：为已存在的表补充可观测性字段（create_all 不会自动加列）�?""
+    """PostgreSQL：为已存在的表补充可观测性字段（create_all 不会自动加列）"""
     insp = inspect(engine)
     if not insp.has_table("api_decision_logs"):
         return
@@ -104,7 +104,7 @@ def _migrate_api_decision_logs_observability_columns() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Base.metadata.create_all(bind=engine)  # 移除自动建表，Supabase 已托�?schema
+    # Base.metadata.create_all(bind=engine)  # 移除自动建表，Supabase 已托管 schema
     _migrate_api_decision_logs_observability_columns()
     with SessionLocal() as db:
         seed_tools(db)
@@ -128,7 +128,7 @@ def root():
 
 @app.get("/health")
 def health_check():
-    """轻量健康检查接口，用于监控和负载均衡�?""
+    """轻量健康检查接口，用于监控和负载均衡"""
     return {
         "status": "ok",
         "service": "wisepick-api",

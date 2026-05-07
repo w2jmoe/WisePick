@@ -1,6 +1,6 @@
 """
 Bootstrap rules for WisePick API v0.
-Simple keyword �?capability mapping with versioning.
+Simple keyword to capability mapping with versioning.
 
 IMPORTANT: This is a COLD-START BOOTSTRAP mechanism only.
 
@@ -34,22 +34,22 @@ RULES = [
     },
     {
         "key": "text_to_writing_v1", 
-        "keywords": ["�?, "文案", "文章", "邮件", "总结", "公告", "write", "article", "essay", "summary", "content"],
+        "keywords": ["写作", "文案", "文章", "邮件", "总结", "公告", "write", "article", "essay", "summary", "content"],
         "capability": "writing"
     },
     {
         "key": "image_generation_v1",
-        "keywords": ["�?, "图片", "海报", "�?, "设计", "插画", "生图", "generate image", "poster", "design"],
+        "keywords": ["生成", "图片", "海报", "图表", "设计", "插画", "生图", "generate image", "poster", "design"],
         "capability": "image_generation"
     },
     {
         "key": "code_generation_v1",
-        "keywords": ["代码", "编程", "python", "爬虫", "写代�?, "script", "code", "program", "csv", "automation script"],
+        "keywords": ["代码", "编程", "python", "爬虫", "写代码", "script", "code", "program", "csv", "automation script"],
         "capability": "coding"
     },
     {
         "key": "automation_v1",
-        "keywords": ["自动�?, "工作�?, "流程", "发邮�?, "抓数�?, "爬数�?, "automation", "workflow", "schedule", "cron", "api", "email"],
+        "keywords": ["自动化", "工作流", "流程", "发邮件", "抓数据", "爬数据", "automation", "workflow", "schedule", "cron", "api", "email"],
         "capability": "automation"
     },
     {
@@ -59,12 +59,12 @@ RULES = [
     },
     {
         "key": "presentation_v1",
-        "keywords": ["ppt", "幻灯�?, "演示", "汇报", "presentation", "slide", "deck", "keynote", "powerpoint", "精美", "设计", "模板"],
+        "keywords": ["ppt", "幻灯片", "演示", "汇报", "presentation", "slide", "deck", "keynote", "powerpoint", "精美", "设计", "模板"],
         "capability": "presentation"
     },
     {
         "key": "general_content_v1",
-        "keywords": ["通用", "一�?, "内容", "general", "content", "assistant", "help", "支持", "咨询"],
+        "keywords": ["通用", "一般", "内容", "general", "content", "assistant", "help", "支持", "咨询"],
         "capability": "general_content"
     },
 ]

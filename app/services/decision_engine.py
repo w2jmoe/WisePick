@@ -93,7 +93,7 @@ def _compute_effective_bootstrap_weight(bootstrap_weight: float, feedback_count:
     
     Cold start (0 feedback):  effective = bootstrap_weight (full)
     Some feedback (20):       effective = bootstrap_weight * 0.5 (half)
-    Lots of feedback (100):   effective â‰?bootstrap_weight * 0.17 (near zero)
+    Lots of feedback (100):   effective â†’ bootstrap_weight * 0.17 (near zero)
     
     Decay formula: decay_factor = 1 / (1 + feedback_count / DECAY_HALF_LIFE)
     """
@@ -221,7 +221,7 @@ def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
     # Create decision log (simplified for v0)
     _create_decision_log(db, decision_id, request, top_tool, reason, explain, trace)
     
-    # Build capability routing response with tool_key â†?capability_id mapping
+    # Build capability routing response with tool_key â†’ capability_id mapping
     capability_id = _map_tool_key_to_capability_id(top_tool.tool, top_tool.matched_capabilities)
     
     return DecideResponse(
@@ -243,7 +243,7 @@ def _map_tool_key_to_capability_id(tool: ApiToolSpec, matched_capabilities: list
     Map tool_key to capability_id using capability mapping rules.
     
     Rules:
-    - If tool has capability field â†?use primary matched capability
+    - If tool has capability field â†’ use primary matched capability
     - Otherwise fallback: capability_id = tool_key + "_capability"
     """
     if matched_capabilities:

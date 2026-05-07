@@ -8,10 +8,10 @@ WisePick routes tasks to executable capabilities for AI agents.
 
 WisePick provides deterministic capability routing:
 
-1. **Decide** â†?POST `/v1/decide` with task description
-2. **Execute** â†?Agent executes the selected capability
-3. **Feedback** â†?POST `/v1/feedback` with execution outcome
-4. **Learn** â†?`capability_stats` updated for future routing
+1. **Decide** â†’ POST `/v1/decide` with task description
+2. **Execute** â†’ Agent executes the selected capability
+3. **Feedback** â†’ POST `/v1/feedback` with execution outcome
+4. **Learn** â†’ `capability_stats` updated for future routing
 
 **Key principle**: WisePick does not execute capabilities, it only routes to them.
 
@@ -134,7 +134,7 @@ Record execution outcome to improve future capability routing.
 WisePick v0 implements capability routing:
 
 - **Capability-first**: Bootstrap rules provide initial capability matching
-- **Deterministic routing**: Same task â†?same executable capability (for reproducibility)
+- **Deterministic routing**: Same task â†’ same executable capability (for reproducibility)
 - **Execution-feedback driven**: Execution success rates influence future routing
 - **Bootstrap decay**: Static rules gradually give way to real execution data
 
@@ -176,7 +176,7 @@ requests.post("http://localhost:8000/v1/feedback", json={
 ## ECU Integration Flow
 
 ```text
-Agent â†?WisePick â†?ECU â†?Local Execution â†?Feedback
+Agent â†’ WisePick â†’ ECU â†’ Local Execution â†’ Feedback
 ```
 
 ### Example ECU Response

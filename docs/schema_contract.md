@@ -4,11 +4,11 @@ I've created a definitive schema specification that resolves all inconsistencies
 
 ### Key Resolutions Applied:
 
-1. **âœ?Timezone Standardization**: All `created_at` fields now use consistent UTC timezone handling
-2. **âœ?JSON Type Consistency**: All JSON fields use SQLAlchemy `JSON` (database-agnostic)
-3. **âœ?NOT NULL Field Coverage**: All required fields have explicit default values
-4. **âœ?API Endpoint Consistency**: Unified response formats across all endpoints
-5. **âœ?Duplicate Logic Removal**: Eliminated unused tables and inconsistent fields
+1. **âœ… Timezone Standardization**: All `created_at` fields now use consistent UTC timezone handling
+2. **âœ… JSON Type Consistency**: All JSON fields use SQLAlchemy `JSON` (database-agnostic)
+3. **âœ… NOT NULL Field Coverage**: All required fields have explicit default values
+4. **âœ… API Endpoint Consistency**: Unified response formats across all endpoints
+5. **âœ… Duplicate Logic Removal**: Eliminated unused tables and inconsistent fields
 
 ### Schema Stability Guarantees:
 
@@ -55,7 +55,7 @@ Future v1+ will add: `latency + cost + stability + semantic_similarity`
 
 ---
 
-## 8. Semantic Upgrade: Tool â†?Capability
+## 8. Semantic Upgrade: Tool â†’ Capability
 
 WisePick v0.1+ has completed the semantic migration from **tool_key-driven** to **capability_id-driven** routing:
 
@@ -64,16 +64,16 @@ WisePick v0.1+ has completed the semantic migration from **tool_key-driven** to 
 | Legacy (v0) | New (v0.1+) | Meaning |
 |-------------|-------------|---------|
 | `tool_key` | `capability_id` + `provider` | What to execute + Who provides it |
-| Tool selection | Capability routing | Intent â†?Executable unit |
+| Tool selection | Capability routing | Intent â†’ Executable unit |
 | Tool-centric | Capability-centric | Agent execution perspective |
 
 ### **Backward Compatibility Strategy**
 
-- âœ?`tool_key` field preserved in all API responses
-- âœ?Existing integrations continue to work unchanged
-- âœ?New `capability_id` field for agent execution planning
-- âœ?No database schema changes required
-- âœ?No breaking changes to existing functionality
+- âœ… `tool_key` field preserved in all API responses
+- âœ… Existing integrations continue to work unchanged
+- âœ… New `capability_id` field for agent execution planning
+- âœ… No database schema changes required
+- âœ… No breaking changes to existing functionality
 
 ### **API Response Evolution**
 
