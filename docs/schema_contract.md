@@ -1,6 +1,6 @@
 ## WisePick API - Final Locked Schema Contract
 
-I've created a definitive schema specification that resolves all inconsistencies and establishes a stable foundation for PostgreSQL migration. The schema is now **LOCKED** and ready for production use.
+I've created a definitive schema specification that resolves all inconsistencies and establishes a stable foundation for PostgreSQL migration. The schema is now **LOCKED** and ready for production use. 
 
 ### Key Resolutions Applied:
 

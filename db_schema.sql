@@ -1,5 +1,5 @@
 -- WisePick API v0
--- Minimal, auditable, Supabase/Postgres-first schema
+-- Minimal, auditable, Supabase/Postgres-first schema 
 
 create extension if not exists pgcrypto;
 

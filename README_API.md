@@ -1,6 +1,6 @@
 # WisePick API v0
 
-WisePick routes tasks to executable capabilities for AI agents.
+WisePick routes tasks to executable capabilities for AI agents. 
 
 ---
 
