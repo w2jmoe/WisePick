@@ -1,6 +1,6 @@
 # WisePick
 
-<b>🚀🚀🚀 2026-05-07 | WPDA（WisePick Decision API）v0.1 🚀🚀🚀</b>
+<b>🚀🚀🚀 2026-05-07 | WPDA（WisePick Decision API）v0.1.1 🚀🚀🚀</b>
 
 > **WisePick does not recommend apps to humans.**
 > **It routes executable capabilities to agents.**
