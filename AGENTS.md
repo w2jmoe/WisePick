@@ -2,6 +2,7 @@
 
 > [!TIP]
 > **Machine-Optimized Spec:** This document is structured for Coding Agents (Cursor, Cline, Devin, etc.).
+> 
 > **Human developers:** refer to [README_API.md](./README_API.md) for deployment and environment setup.
 
 **Audience:** AI Agent Runtime / Coding Agents only (Cursor, Cline, Claude Code, OpenHands, Devin, etc.).
