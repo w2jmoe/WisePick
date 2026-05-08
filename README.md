@@ -1,6 +1,6 @@
 # WisePick
 
-**🚀 WisePick Decision API (WPDA) v0.1.0**
+**🚀 WisePick Decision API (WPDA) v0.1.1**
 **The Infrastructure for Agentic Capability Routing.**
 
 > **WisePick does not recommend apps to humans.**
@@ -66,10 +66,6 @@ Deterministic Selection: Guarantees the single best executable capability unit (
 
 Self-evolving Loop: Continuously optimizes routing through real execution feedback.
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 0a992da93f77145037a41c82acce1fdcad108e5d
 更低成本与延迟：大幅减少无效试错，节省 Token 消耗与执行时间。
 
 确定性决策：确保输出唯一最优的可执行能力单元 (ECU)。
@@ -193,7 +189,6 @@ Instead of every agent repeating the same trial-and-error, execution outcomes ca
 
 ---
 
-<<<<<<< HEAD
 ## 🤖 Agent Runtime Integration
 
 See `[AGENTS.md](./AGENTS.md)` for machine-readable integration semantics and runtime workflow.
@@ -202,10 +197,6 @@ See `[AGENTS.md](./AGENTS.md)` for machine-readable integration semantics and ru
 
 ## 🤗 Feedback & Integration | 反馈与集成
 
-=======
-## 🤗 Feedback & Integration | 反馈与集成
-
->>>>>>> 0a992da93f77145037a41c82acce1fdcad108e5d
 If you integrate WisePick, feel free to share your use case, routing results, or failure cases.
 
 欢迎接入智选 API。如果遇到 routing 问题、失败案例、或真实 Agent 使用场景，也欢迎反馈。
