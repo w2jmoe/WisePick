@@ -140,7 +140,7 @@ WisePick evolved from:
 ```
 
 **Programming against Capabilities, not Products.**
-Agent 对“能力”编程，不对“产品”名编程。
+Agent 对“能力”编程，不对“产品名”编程。
 
 ---
 
@@ -191,7 +191,7 @@ Instead of every agent repeating the same trial-and-error, execution outcomes ca
 
 ## 🤖 Agent Runtime Integration
 
-See `[AGENTS.md](./AGENTS.md)` for machine-readable integration semantics and runtime workflow.
+See [AGENTS.md](./AGENTS.md) for machine-readable integration semantics and runtime workflow.
 
 ---
 
