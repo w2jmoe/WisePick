@@ -54,6 +54,3 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
-
-# Local examples (avoid accidental commit / upload)
-examples/
