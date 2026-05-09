@@ -247,6 +247,18 @@ curl -s -X POST "http://localhost:8000/v1/feedback" \
 
 ---
 
+## Infrastructure Awareness (Optional YantrikDB)
+
+When **`YANTRIK_DB_URL`** is set, WisePick calls **YantrikDB’s** `GET /v1/health` during `/v1/decide` and reads **`replication_lag_log_entries`**. This does **not** change your Supabase/PostgreSQL schema; it is a lightweight, optional plugin.
+
+**Deterministic routing in clusters:** If replication lag (log entries) is **greater than 500**, WisePick applies a **health penalty**: every candidate ECU score is multiplied by **0.5** before ranking. That uniformly lowers **confidence** for all tools for that request, keeping ordering relative to each other while signaling cluster stress.
+
+**When disabled or unreachable:** If `YANTRIK_DB_URL` is empty, or the health request fails, WisePick **skips** this step and uses the standard score only—no errors.
+
+**Agent-visible fields:** `explain.yantrik_cluster` and `trace.yantrik_cluster` include `configured`, `replication_lag_log_entries`, `health_penalty_applied`, and `health_score_multiplier` when relevant.
+
+---
+
 ## Quick Reference — Decision Layer Boundary
 
 ```json

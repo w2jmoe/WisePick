@@ -16,6 +16,8 @@ from app.models.tool_spec import ApiToolSpec
 from app.schemas.decide import DecideRequest, DecideResponse
 from app.services.bootstrap_rules import extract_capabilities, BOOTSTRAP_VERSION
 from app.core.logger import get_logger
+from app.core.config import settings
+from app.adapters.yantrik_adapter import get_cluster_health, health_score_multiplier
 
 logger = get_logger("decision_engine")
 
@@ -178,13 +180,35 @@ def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
     target_capabilities = extract_capabilities(request.task)
     
     logger.info(f'processing decision: {len(tools)} tools, {len(target_capabilities)} capabilities')
+
+    # Optional YantrikDB cluster health → ECU score multiplier (plugin-style; off when URL unset)
+    yantrik_health = None
+    health_mult = 1.0
+    if (settings.YANTRIK_DB_URL or "").strip():
+        yantrik_health = get_cluster_health(
+            settings.YANTRIK_DB_URL.strip(),
+            (settings.YANTRIK_DB_API_KEY or "").strip(),
+        )
+        health_mult = health_score_multiplier(yantrik_health)
+    yantrik_meta = (
+        {
+            "configured": True,
+            "replication_lag_log_entries": (
+                yantrik_health.replication_lag_log_entries if yantrik_health else None
+            ),
+            "health_penalty_applied": health_mult < 1.0,
+            "health_score_multiplier": health_mult,
+        }
+        if (settings.YANTRIK_DB_URL or "").strip()
+        else {"configured": False}
+    )
     
     # Score all tools
     scored_tools = []
     for tool in tools:
         success_rate = _get_tool_success_rate(db, tool.tool_key)
         feedback_count = _get_feedback_count(db, tool.tool_key)
-        score = _compute_score(tool, target_capabilities, success_rate, feedback_count)
+        score = _compute_score(tool, target_capabilities, success_rate, feedback_count) * health_mult
         
         # Check capability match for explanation
         tool_caps = _parse_tool_capabilities(tool.capabilities)
@@ -212,11 +236,16 @@ def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
     decision_id = f"dec_{uuid.uuid4().hex[:16]}"
     
     # Build explanation
-    reason = _build_reason(top_tool, target_capabilities, _get_feedback_count(db, top_tool.tool.tool_key))
+    reason = _build_reason(
+        top_tool,
+        target_capabilities,
+        _get_feedback_count(db, top_tool.tool.tool_key),
+        yantrik_meta,
+    )
     
     # Build explain and trace payloads
-    explain = _build_explain_payload(top_tool, target_capabilities, scored_tools)
-    trace = _build_trace_payload(request, top_tool, scored_tools, started_at)
+    explain = _build_explain_payload(top_tool, target_capabilities, scored_tools, yantrik_meta)
+    trace = _build_trace_payload(request, top_tool, scored_tools, started_at, yantrik_meta)
     
     # Create decision log (simplified for v0)
     _create_decision_log(db, decision_id, request, top_tool, reason, explain, trace)
@@ -254,7 +283,12 @@ def _map_tool_key_to_capability_id(tool: ApiToolSpec, matched_capabilities: list
         return f"{tool.tool_key}_capability"
 
 
-def _build_reason(top_tool: ScoredTool, target_capabilities: list[str], feedback_count: int = 0) -> str:
+def _build_reason(
+    top_tool: ScoredTool,
+    target_capabilities: list[str],
+    feedback_count: int = 0,
+    yantrik_meta: dict | None = None,
+) -> str:
     """Build human-readable reason for capability routing."""
     parts = []
     
@@ -273,6 +307,17 @@ def _build_reason(top_tool: ScoredTool, target_capabilities: list[str], feedback
     
     parts.append(f"Execution success rate: {_get_success_rate_display(top_tool.tool)}")
     parts.append(f"Confidence score: {top_tool.score:.2f}")
+
+    if (
+        yantrik_meta
+        and yantrik_meta.get("configured")
+        and yantrik_meta.get("health_penalty_applied")
+    ):
+        lag = yantrik_meta.get("replication_lag_log_entries")
+        mult = yantrik_meta.get("health_score_multiplier")
+        parts.append(
+            f"YantrikDB health penalty (replication_lag_log_entries={lag}); ECU scores scaled by {mult}"
+        )
     
     return "; ".join(parts)
 
@@ -307,7 +352,12 @@ def _get_success_rate_display(tool: ApiToolSpec) -> str:
     return "50% (default)"
 
 
-def _build_explain_payload(top_tool: ScoredTool, target_capabilities: list[str], all_tools: list[ScoredTool]) -> dict:
+def _build_explain_payload(
+    top_tool: ScoredTool,
+    target_capabilities: list[str],
+    all_tools: list[ScoredTool],
+    yantrik_meta: dict | None = None,
+) -> dict:
     """Build explain payload for auditability."""
     feedback_count = 0
     try:
@@ -320,8 +370,17 @@ def _build_explain_payload(top_tool: ScoredTool, target_capabilities: list[str],
     bootstrap_weight = float(getattr(top_tool.tool, 'bootstrap_weight', 0.5) or 0.5)
     effective_bootstrap = _compute_effective_bootstrap_weight(bootstrap_weight, feedback_count)
     
-    return {
-        "scoring_formula": "capability_match * 0.70 + execution_success_rate * 0.20 + effective_bootstrap_weight * 0.10",
+    scoring_formula = (
+        "capability_match * 0.70 + execution_success_rate * 0.20 + effective_bootstrap_weight * 0.10"
+    )
+    if yantrik_meta and yantrik_meta.get("health_penalty_applied"):
+        scoring_formula += (
+            "; then multiply all ECU scores by yantrik health_score_multiplier when "
+            "replication_lag_log_entries > 500"
+        )
+
+    out: dict[str, Any] = {
+        "scoring_formula": scoring_formula,
         "selected_capability": {
             "capability_id": top_tool.matched_capabilities[0] if top_tool.matched_capabilities else "general_capability",
             "provider": top_tool.tool.tool_key,
@@ -332,13 +391,22 @@ def _build_explain_payload(top_tool: ScoredTool, target_capabilities: list[str],
         "feedback_count": feedback_count,
         "effective_bootstrap_weight": effective_bootstrap
     }
+    if yantrik_meta is not None:
+        out["yantrik_cluster"] = yantrik_meta
+    return out
 
 
-def _build_trace_payload(request: DecideRequest, top_tool: ScoredTool, all_tools: list[ScoredTool], started_at: float) -> dict:
+def _build_trace_payload(
+    request: DecideRequest,
+    top_tool: ScoredTool,
+    all_tools: list[ScoredTool],
+    started_at: float,
+    yantrik_meta: dict | None = None,
+) -> dict:
     """Build trace payload for debugging."""
     latency_ms = int((time.perf_counter() - started_at) * 1000)
     
-    return {
+    trace: dict[str, Any] = {
         "timestamp": time.time(),
         "latency_ms": latency_ms,
         "top_candidates": [
@@ -351,6 +419,9 @@ def _build_trace_payload(request: DecideRequest, top_tool: ScoredTool, all_tools
             for i, tool in enumerate(all_tools[:5])
         ]
     }
+    if yantrik_meta is not None:
+        trace["yantrik_cluster"] = yantrik_meta
+    return trace
 
 
 def _create_decision_log(db: Session, decision_id: str, request: DecideRequest, 

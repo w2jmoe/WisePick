@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/wisepick"
     APP_TITLE: str = "WisePick Decision Router API"
     APP_VERSION: str = "0.1.0"
+    # Optional YantrikDB cluster health (state-aware routing); empty = disabled
+    YANTRIK_DB_URL: str = ""
+    YANTRIK_DB_API_KEY: str = ""
 
     model_config = SettingsConfigDict(env_file=str(_ENV_PATH), extra="ignore")
 
