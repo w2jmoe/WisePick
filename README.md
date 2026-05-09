@@ -97,9 +97,13 @@ bootstrap_weight       * 0.10  (初始权重/冷启动偏好)
 
 ```
 
-**Optional YantrikDB (enterprise cluster awareness):** WisePick can integrate with **YantrikDB** by setting `YANTRIK_DB_URL` (and optionally `YANTRIK_DB_API_KEY`). When configured, it reads cluster health from YantrikDB’s `/v1/health` and may scale ECU scores when replication lag is high—without changing your primary database schema.
+### Optional YantrikDB | 可选 YantrikDB
 
-**可选 YantrikDB（企业级集群感知）：** 配置 **`YANTRIK_DB_URL`**（及可选 **`YANTRIK_DB_API_KEY`**）后，WisePick 会从 YantrikDB 的 **`/v1/health`** 读取集群健康信号，并在复制滞后较高时对 ECU 分数做确定性调整；**不修改**主库 Schema。
+*Enterprise cluster awareness · 企业级集群感知*
+
+WisePick can integrate with **YantrikDB** by setting `YANTRIK_DB_URL` (and optionally `YANTRIK_DB_API_KEY`). When configured, it reads cluster health from YantrikDB’s `/v1/health` and may scale ECU scores when replication lag is high—without changing your primary database schema.
+
+配置 `YANTRIK_DB_URL`（及可选 `YANTRIK_DB_API_KEY`）后，WisePick 会从 YantrikDB 的 `/v1/health` 读取集群健康信号，并在复制滞后较高时对 ECU 分数做确定性调整；不修改主库 Schema。
 
 ### Feedback Loop
 
