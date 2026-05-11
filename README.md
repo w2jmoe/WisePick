@@ -236,9 +236,12 @@ See [AGENTS.md](./AGENTS.md) for machine-readable integration semantics and runt
 
 ## 🗺️ Roadmap | 路线图
 
-- **v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
-- **v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
-- **Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
+- **✅v0.1**: Core Capability Routing · 核心路由层实现
+    Sub-millisecond isolated core latency.
+    ECU protocol & feedback loop logic.
+- **🔄v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
+- **🔄v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
+- **🔄Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
 
 ---
 
@@ -248,7 +251,7 @@ If you integrate WisePick, feel free to share your use case, routing results, or
 
 欢迎接入智选 API。如果遇到 routing 问题、失败案例、或真实 Agent 使用场景，也欢迎反馈。
 
-- **Issues**: GitHub Issues
+- **Issues**: [GitHub Issues](https://github.com/w2jmoe/WisePick/issues)
 - **Email**: [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
 
 **Every routing decision is observable, feedback-driven, and reproducible.**
