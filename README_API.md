@@ -111,7 +111,7 @@ Record execution outcome to improve future capability routing.
   "decision_id": "dec_abc123def4567890",
   "success": true,
   "latency_ms": 1200,
-  "user_note": "Transcription quality was excellent"
+  "user_note": "{\"token_usage\": 450, \"cost_usd\": 0.01}"
 }
 ```
 
@@ -124,7 +124,8 @@ Record execution outcome to improve future capability routing.
 
 **Notes**:
 - `success` updates the capability's execution success rate in `capability_stats`
-- `latency_ms` and `user_note` are optional metadata
+- `latency_ms` — optional execution duration (milliseconds)
+- `user_note` — **type `string`**, optional free-form metadata. **Recommended:** store a **serialized JSON object** (JSON-in-string) for ROI signals—token usage, USD cost, or other metrics—so future decision logic can consume structured cost data without schema changes. Example object before serialization: `{"token_usage": 450, "cost_usd": 0.01}`.
 - Feedback drives the system from rule-based to execution-data-driven routing
 
 ---
@@ -170,6 +171,8 @@ WisePick can optionally integrate with **YantrikDB** during `/v1/decide` so repl
 ## Minimal Integration Example
 
 ```python
+import json
+
 # 1. Send task to WisePick for capability routing
 response = requests.post("http://localhost:8000/v1/decide", json={
     "task": "Summarize this technical document"
@@ -181,11 +184,12 @@ capability_id = routing["capability_id"]
 provider = routing["provider"]
 result = execute_capability(capability_id, provider, routing["task"])
 
-# 3. Send execution feedback
+# 3. Send execution feedback (optional user_note: ROI metrics as JSON string)
 requests.post("http://localhost:8000/v1/feedback", json={
     "decision_id": routing["decision_id"],
     "success": result.success,
-    "latency_ms": result.latency_ms
+    "latency_ms": result.latency_ms,
+    "user_note": json.dumps({"token_usage": 450, "cost_usd": 0.01}),
 })
 ```
 

@@ -154,9 +154,17 @@ Base URL example: `http://localhost:8000` (replace with deployed host).
   "decision_id": "dec_abc123def4567890",
   "success": true,
   "latency_ms": 1200,
-  "user_note": "optional"
+  "user_note": "{\"token_usage\": 450, \"cost_usd\": 0.01}"
 }
 ```
+
+**`user_note` (optional string):** Strongly recommended: embed a **JSON object serialized as a string** so execution cost / ROI signals stay structured without any database migration—e.g. token counts, USD spend, or other metrics your runtime already tracks. Example payload shape:
+
+```json
+{"token_usage": 450, "cost_usd": 0.01}
+```
+
+Serialize that object to a string and send it as `user_note`. Same pattern applies when explaining failures (constraint text plus optional numeric fields). Preserves a machine-readable convention for future ROI-aware routing logic.
 
 **Response:**
 
@@ -168,7 +176,8 @@ Base URL example: `http://localhost:8000` (replace with deployed host).
 
 - Must reference a **real** `decision_id` from a prior `/v1/decide` response (404 if unknown).
 - `success` drives future routing via capability stats.
-- `latency_ms` / `user_note` optional but useful for observability.
+- `latency_ms` — optional wall-clock signal.
+- `user_note` — optional; **prefer** JSON-as-string ROI/cost metadata as above for observability and downstream analytics.
 
 ---
 
@@ -185,7 +194,7 @@ intent
   → next POST /v1/decide benefits from execution history
 ```
 
-**Failure path:** Send `success: false` with optional `user_note` explaining constraint violations — still closes the loop.
+**Failure path:** Send `success: false` with optional `user_note` (plain text or JSON string per above) explaining constraint violations — still closes the loop.
 
 ---
 
@@ -207,7 +216,7 @@ intent
 4. if not callable → replan / ask / enrich context → goto 2 (do not tool-spray)
 5. map (capability_id, provider, execution_type) → local handler
 6. execute handler(task, context)
-7. POST /v1/feedback with decision_id + outcome
+7. POST `/v1/feedback` with `decision_id`, outcome, optional `latency_ms`, optional `user_note` (ROI JSON string recommended)
 8. continue session or goto 1 with updated state
 ```
 

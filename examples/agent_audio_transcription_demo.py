@@ -108,6 +108,13 @@ def main() -> int:
     result = execute_audio_transcription_ecu(decision)
     success = bool(result.get("simulated")) and not result.get("skipped")
 
+    # ROI payload as JSON string in user_note (v0.1.4 convention — see README_API.md / AGENTS.md)
+    roi_data = {
+        "token_usage": 450,
+        "cost_usd": 0.002,
+        "source": "demo_script",
+    }
+
     fb = _post_json(
         base,
         "/v1/feedback",
@@ -115,7 +122,7 @@ def main() -> int:
             "decision_id": decision_id,
             "success": success,
             "latency_ms": 42,
-            "user_note": "examples/agent_audio_transcription_demo.py simulated run",
+            "user_note": json.dumps(roi_data, ensure_ascii=False),
         },
     )
     print("POST /v1/feedback:", json.dumps(fb, ensure_ascii=False))

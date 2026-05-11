@@ -1,24 +1,25 @@
-<img src="./logo.png" align="left" height="40" alt="WisePick logo" />
+<div align="center">
 
-# WisePick
+<img src="./logo.png" height="120" alt="WisePick logo" />
 
-<br clear="all" />
+# WisePick | 智选
+
+**The Deterministic Scaffold for Agentic Capability Routing | 面向 Agent 能力路由的确定性脚手架**
 
 [![GitHub stars](https://img.shields.io/github/stars/w2jmoe/WisePick?style=flat-square)](https://github.com/w2jmoe/WisePick/stargazers)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](./LICENSE)
 [![Follow on X](https://img.shields.io/badge/Follow-%40w2jmoe-000000?style=flat-square&logo=x)](https://twitter.com/w2jmoe)
 
-<img width="1943" height="800" alt="WisePick contrast flowchart" src="https://github.com/user-attachments/assets/30a0d5a1-42df-4732-812e-a83a1cb5e520" />
+<img width="100%" alt="WisePick contrast flowchart" src="https://github.com/user-attachments/assets/30a0d5a1-42df-4732-812e-a83a1cb5e520" />
+
+</div>
 
 ---
 
-**🚀 WisePick Decision API (WPDA) v0.1.3 — The deterministic scaffold for agentic capability routing.**
+**🚀 WisePick Decision API (WPDA) v0.1.4**
 
-**智选决策 API（WPDA）v0.1.3 — 面向 Agent 能力路由的确定性脚手架。**
-
-> WisePick does not recommend apps to humans. It routes executable capabilities to agents.
-
-> 智选不向人类推荐应用；它为 Agent 路由可执行能力。
+> WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.  
+> 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。
 
 ---
 
@@ -128,6 +129,14 @@ requests.post(
 
 ---
 
+## 🤖 Agent Runtime Integration | 运行时集成
+
+Machine-readable contract and runtime loop: [AGENTS.md](./AGENTS.md).
+
+机器可读的集成语义与运行时闭环见 [AGENTS.md](./AGENTS.md)。
+
+---
+
 ## 🧠 How It Works | 工作原理
 
 ### Capability Matching | 能力匹配
@@ -190,7 +199,7 @@ WisePick evolved from `tool selection` → `executable capability routing`.
 | Tool-centric | Capability-centric |
 | Tool selection | Capability routing |
 
-### Example ECU Response | ECU 响应示例
+## 🔬 Example ECU Response | ECU 响应示例
 
 ```json
 {
@@ -239,14 +248,6 @@ WisePick provides decision, routing, and execution learning—not task execution
 Execution outcomes become portable capability experience—not repeated trial and error.
 
 执行结果沉淀为可迁移的能力经验，而非重复试错。
-
----
-
-## 🤖 Agent Runtime Integration | 运行时集成
-
-Machine-readable contract and runtime loop: [AGENTS.md](./AGENTS.md).
-
-机器可读的集成语义与运行时闭环见 [AGENTS.md](./AGENTS.md)。
 
 ---
 
