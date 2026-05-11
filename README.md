@@ -82,6 +82,29 @@ WisePick is built for production-grade reliability. Under 1,000+ RPS load, it ma
 
 ---
 
+## 🔌 Quick Integration (30s) |  快速接入（约 30 秒）
+
+**WisePick is a stateless decision layer:** each `/v1/decide` call only maps intent → ECU (`capability_id`, `provider`, `decision_id`, …). It does **not** hold your execution state—you run tools locally, then **POST `/v1/feedback`** so routing can learn.
+
+**WisePick 是无状态的决策层：**单次 `/v1/decide` 只负责把意图映射成 ECU（`capability_id`、`provider`、`decision_id` 等）。**它不替你保存执行状态**——能力在你侧执行，再通过 **`/v1/feedback`** 回传结果以参与学习。
+
+```python
+import requests
+
+# 1. Route: Get the best capability for the task
+decision = requests.post("http://localhost:8000/v1/decide",
+                         json={"task": "Generate a technical summary"}).json()
+
+# 2. Execute: Your agent uses the routed ECU (capability_id + provider)
+# result = your_agent.execute(decision['capability_id'], decision['provider'])
+
+# 3. Feedback: Close the loop to let WisePick learn
+requests.post("http://localhost:8000/v1/feedback",
+              json={"decision_id": decision['decision_id'], "success": True})
+```
+
+---
+
 ## 🧠 How It Works | 工作原理
 
 ### Capability Matching
