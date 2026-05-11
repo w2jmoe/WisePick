@@ -1,6 +1,5 @@
 # WisePick
-
-
+<img width="1943" height="800" alt="wisepick_contrast_flowchart" src="https://github.com/user-attachments/assets/f104df31-4164-458c-95ec-e8c4d4718f95" />
 
 **🚀 WisePick Decision API (WPDA) v0.1.3** | 
 **The Deterministic Scaffold for Agentic Capability Routing.**
@@ -13,9 +12,7 @@
 
 ---
 
-## 🛡️ Decision Infrastructure for AI Agents
-
-## 🛡️ AI Agent 的决策基础设施
+## 🛡️ Decision Infrastructure | 决策基础设施
 
 **From intent → to one executable capability unit.**
 **输入意图 → 输出可执行能力单元。**
@@ -82,15 +79,15 @@ WisePick is built for production-grade reliability. Under 1,000+ RPS load, it ma
 
 ---
 
-## 🔌 Quick Integration (30s) |  快速接入（约 30 秒）
+## 🔌 Quick Integration (30s) | 快速接入（约 30 秒）
 
 **WisePick is a stateless decision layer:** each `/v1/decide` call only maps intent → ECU (`capability_id`, `provider`, `decision_id`, …). It does **not** hold your execution state—you run tools locally, then **POST `/v1/feedback`** so routing can learn.
 
 **WisePick 是无状态的决策层：** 单次 `/v1/decide` 只负责把意图映射成 ECU（`capability_id`、`provider`、`decision_id` 等）。**它不替你保存执行状态**——能力在你侧执行，再通过 **`/v1/feedback`** 回传结果以参与学习。
 
-**Prerequisite:** Ensure the WisePick API is deployed and running locally or on your server (see [Quick Start](./README_API.md#quick-start)).
+**Prerequisite:** Self-hosted deployment required—run the API locally or on your infrastructure ([deployment guide](./README_API.md#quick-start): install, env, `uvicorn`).
 
-**前提条件：** 请确保 WisePick API 已在本地或服务器部署并运行（参考 [快速开始](./README_API.md#quick-start)）。
+**前提条件：** WisePick 为自托管服务，请先在本地或自有服务器完成部署与启动（步骤见 [README_API.md 部署与运行](./README_API.md#quick-start)）。
 
 ```python
 import requests
@@ -114,7 +111,7 @@ requests.post(f"{BASE_URL}/v1/feedback",
 
 ## 🧠 How It Works | 工作原理
 
-### Capability Matching
+### Capability Matching | 能力匹配
 
 任务 → 能力标签
 
@@ -123,7 +120,7 @@ task → capabilities
 
 ```
 
-### Capability Scoring
+### Capability Scoring | 能力评分
 
 Each ECU is scored using:
 
@@ -143,7 +140,7 @@ WisePick can integrate with **YantrikDB** by setting `YANTRIK_DB_URL` (and optio
 
 配置 `YANTRIK_DB_URL`（及可选 `YANTRIK_DB_API_KEY`）后，WisePick 会从 YantrikDB 的 `/v1/health` 读取集群健康信号，并在复制滞后较高时对 ECU 分数做确定性调整；不修改主库 Schema。
 
-### Feedback Loop
+### Feedback Loop | 反馈闭环
 
 ```text
 decision
@@ -156,6 +153,12 @@ decision
 
 The system learns from real execution outcomes.
 系统基于真实执行结果持续优化能力路由。
+
+### Components | 核心组件
+
+- **Routing core** (`decision_engine`) — Task → ECU scoring and selection. · **路由核心** — 任务评分与 ECU 选择。
+- **Capability registry** (`api_tool_specs`) — Enabled providers, capability tags, bootstrap weights. · **能力注册表** — 可用 provider、标签与冷启动权重。
+- **Execution memory** (`tool_stats`, `feedback`) — Success rates and outcomes for closed-loop learning. · **执行记忆** — 成功率与反馈闭环。
 
 ---
 
@@ -211,18 +214,6 @@ WisePick does not execute tasks. It provides:
 
 ---
 
-## 🧱 Architecture | 架构
-
-```text
-decision_engine.py  → capability router
-api_tool_specs      → executable capability registry
-tool_stats          → execution performance memory
-feedback            → learning loop
-
-```
-
----
-
 ## 🔮 Vision | 愿景
 
 **Today:** Local execution learning
@@ -237,9 +228,17 @@ Instead of every agent repeating the same trial-and-error, execution outcomes ca
 
 ---
 
-## 🤖 Agent Runtime Integration
+## 🤖 Agent Runtime Integration | 运行时集成
 
 See [AGENTS.md](./AGENTS.md) for machine-readable integration semantics and runtime workflow.
+
+---
+
+## 🗺️ Roadmap | 路线图
+
+- **v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
+- **v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
+- **Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
 
 ---
 
@@ -251,6 +250,9 @@ If you integrate WisePick, feel free to share your use case, routing results, or
 
 - **Issues**: GitHub Issues
 - **Email**: [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
+
+**Every routing decision is observable, feedback-driven, and reproducible.**
+**每一次路由决策可观测、可反馈、可复现。**
 
 **Every decision sharpens the path to perfect agency.**
 **每一次决策，都在打磨通往完美能动性的路径。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**
