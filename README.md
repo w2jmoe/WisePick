@@ -86,20 +86,27 @@ WisePick is built for production-grade reliability. Under 1,000+ RPS load, it ma
 
 **WisePick is a stateless decision layer:** each `/v1/decide` call only maps intent → ECU (`capability_id`, `provider`, `decision_id`, …). It does **not** hold your execution state—you run tools locally, then **POST `/v1/feedback`** so routing can learn.
 
-**WisePick 是无状态的决策层：**单次 `/v1/decide` 只负责把意图映射成 ECU（`capability_id`、`provider`、`decision_id` 等）。**它不替你保存执行状态**——能力在你侧执行，再通过 **`/v1/feedback`** 回传结果以参与学习。
+**WisePick 是无状态的决策层：** 单次 `/v1/decide` 只负责把意图映射成 ECU（`capability_id`、`provider`、`decision_id` 等）。**它不替你保存执行状态**——能力在你侧执行，再通过 **`/v1/feedback`** 回传结果以参与学习。
+
+**Prerequisite:** Ensure the WisePick API is deployed and running locally or on your server (see [Quick Start](./README_API.md#quick-start)).
+
+**前提条件：** 请确保 WisePick API 已在本地或服务器部署并运行（参考 [快速开始](./README_API.md#quick-start)）。
 
 ```python
 import requests
 
+# Self-hosted API base URL (placeholder — replace with your deployment host/port)
+BASE_URL = "http://localhost:8000"
+
 # 1. Route: Get the best capability for the task
-decision = requests.post("http://localhost:8000/v1/decide",
+decision = requests.post(f"{BASE_URL}/v1/decide",
                          json={"task": "Generate a technical summary"}).json()
 
 # 2. Execute: Your agent uses the routed ECU (capability_id + provider)
 # result = your_agent.execute(decision['capability_id'], decision['provider'])
 
 # 3. Feedback: Close the loop to let WisePick learn
-requests.post("http://localhost:8000/v1/feedback",
+requests.post(f"{BASE_URL}/v1/feedback",
               json={"decision_id": decision['decision_id'], "success": True})
 ```
 
