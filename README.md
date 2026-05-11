@@ -1,13 +1,14 @@
 # WisePick
+<img width="1943" height="800" alt="wisepick_contrast_flowchart" src="https://github.com/user-attachments/assets/f104df31-4164-458c-95ec-e8c4d4718f95" />
 
-**🚀 WisePick Decision API (WPDA) v0.1.2**
-**The Infrastructure for Agentic Capability Routing.**
+**🚀 WisePick Decision API (WPDA) v0.1.3** | 
+**The Deterministic Scaffold for Agentic Capability Routing.**
 
 > **WisePick does not recommend apps to humans.**
-> **It routes executable capabilities to agents.**
+> **It routes executable capabilities to agents at 0.0s latency.**
 
 > **智选不是给人类推荐工具。**
-> **而是给 Agent 路由可执行能力。**
+> **而是为 Agent 提供 0.0s 延迟的确定性决策路由。**
 
 ---
 
@@ -71,6 +72,12 @@ Self-evolving Loop: Continuously optimizes routing through real execution feedba
 确定性决策：确保输出唯一最优的可执行能力单元 (ECU)。
 
 持续进化闭环：基于真实执行反馈，自动迭代路由准确度。
+
+---
+
+## 🚀 Performance | 性能报告
+
+WisePick is built for production-grade reliability. Under 1,000+ RPS load, it maintains sub-millisecond deterministic routing. See [Full Benchmark Report (P50/P95/P99)](./docs/STRESS_TEST_RESULTS.md).
 
 ---
 
@@ -212,4 +219,5 @@ If you integrate WisePick, feel free to share your use case, routing results, or
 * **Issues**: GitHub Issues
 * **Email**: [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
 
-**每一次实测，都在让决策更聪明。 ˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**
+**Every decision sharpens the path to perfect agency.**
+**每一次决策，都在打磨通往完美能动性的路径。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**

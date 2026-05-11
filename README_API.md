@@ -147,6 +147,26 @@ As execution feedback accumulates, bootstrap weight decays, shifting from rule-d
 
 ---
 
+## Optional YantrikDB (cluster health)
+
+WisePick can optionally integrate with **YantrikDB** during `/v1/decide` so replication lag can influence routing confidence. This is **plugin-style**: no Supabase/PostgreSQL schema changes; leave variables empty to disable.
+
+**Environment variables** (see `.env.example`):
+
+- **`YANTRIK_DB_URL`** — Base URL of YantrikDB. If empty, cluster health logic is skipped entirely.
+- **`YANTRIK_DB_API_KEY`** — Optional. When set, sent as `Authorization: Bearer <token>` on the health request.
+
+**Behavior**:
+
+1. When `YANTRIK_DB_URL` is set, WisePick calls `GET {base}/v1/health` (timeout bounded).
+2. It parses **`replication_lag_log_entries`** from the JSON response.
+3. If lag **> 500**, all candidate ECU scores for that request are multiplied by **0.5** before ranking (uniform health penalty on **confidence**).
+4. If the URL is unset, or the health request fails or omits the field, WisePick uses the standard score only—no hard failure.
+
+**Response fields**: When YantrikDB is configured for the process, `explain.yantrik_cluster` and `trace.yantrik_cluster` may include `configured`, `replication_lag_log_entries`, `health_penalty_applied`, and `health_score_multiplier`.
+
+---
+
 ## Minimal Integration Example
 
 ```python
@@ -230,7 +250,8 @@ def execute_capability(capability_id: str, provider: str, task: str):
 - **Designed for agent integration** - minimal API surface for easy embedding
 - **All routing decisions are auditable** - explain and trace provide full transparency
 - **Supabase-backed** - PostgreSQL-compatible database for capability stats
-- **Open source v0** - focused on core capability routing, not enterprise features
+- **Optional YantrikDB** - When `YANTRIK_DB_URL` is set, `/v1/decide` can factor replication lag into ECU scores (see **Optional YantrikDB**)
+- **Open source v0** - focused on core capability routing; enterprise-style cluster awareness is opt-in via YantrikDB
 
 **Error Responses**: All endpoints return consistent JSON error format:
 ```json
@@ -246,7 +267,7 @@ def execute_capability(capability_id: str, provider: str, task: str):
 
 1. Clone repository
 2. Install dependencies: `pip install -r requirements.txt`
-3. Configure database connection
+3. Configure database connection (and optionally `YANTRIK_DB_URL` / `YANTRIK_DB_API_KEY` for cluster health—see **Optional YantrikDB (cluster health)**)
 4. Run: `uvicorn app.main:app --reload`
 5. Test: `curl http://localhost:8000/health`
 
