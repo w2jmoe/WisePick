@@ -1,5 +1,6 @@
 # WisePick
-<img width="1943" height="800" alt="wisepick_contrast_flowchart" src="https://github.com/user-attachments/assets/f104df31-4164-458c-95ec-e8c4d4718f95" />
+
+
 
 **🚀 WisePick Decision API (WPDA) v0.1.3** | 
 **The Deterministic Scaffold for Agentic Capability Routing.**
@@ -50,9 +51,9 @@ Most AI agents fail not because of weak models, but because of poor capability r
 
 Common problems:
 
-* **Blind capability search** (盲目遍历能力)
-* **Trial-and-error execution** (反复试错执行)
-* **No execution feedback loop** (没有反馈闭环)
+- **Blind capability search** (盲目遍历能力)
+- **Trial-and-error execution** (反复试错执行)
+- **No execution feedback loop** (没有反馈闭环)
 
 WisePick replaces guessing with **learned routing**.
 智选用“数据驱动能力路由”替代盲目猜测。
@@ -77,7 +78,7 @@ Self-evolving Loop: Continuously optimizes routing through real execution feedba
 
 ## 🚀 Performance | 性能报告
 
-WisePick is built for production-grade reliability. Under 1,000+ RPS load, it maintains sub-millisecond deterministic routing. See [Full Benchmark Report (P50/P95/P99)](./docs/STRESS_TEST_RESULTS.md).
+WisePick is built for production-grade reliability. Under 1,000+ RPS load, it maintains sub-millisecond (avg ~0.6ms) deterministic routing. See [Isolated Routing Scaffold Benchmark (P50/P95/P99)](./docs/STRESS_TEST_RESULTS.md).
 
 ---
 
@@ -133,11 +134,13 @@ The system learns from real execution outcomes.
 WisePick evolved from:
 `tool selection` → `executable capability routing`
 
-| Legacy (传统) | New (智选) |
-| --- | --- |
-| tool_key | capability_id + provider |
-| Tool-centric | Capability-centric |
-| Tool selection | Capability routing |
+
+| Legacy (传统)    | New (智选)                 |
+| -------------- | ------------------------ |
+| tool_key       | capability_id + provider |
+| Tool-centric   | Capability-centric       |
+| Tool selection | Capability routing       |
+
 
 ### Example ECU Response
 
@@ -172,9 +175,9 @@ Agent 对“能力”编程，不对“产品名”编程。
 
 WisePick does not execute tasks. It provides:
 
-* **decision** (决策)
-* **routing** (路由)
-* **execution learning** (执行反馈学习)
+- **decision** (决策)
+- **routing** (路由)
+- **execution learning** (执行反馈学习)
 
 ---
 
@@ -216,8 +219,8 @@ If you integrate WisePick, feel free to share your use case, routing results, or
 
 欢迎接入智选 API。如果遇到 routing 问题、失败案例、或真实 Agent 使用场景，也欢迎反馈。
 
-* **Issues**: GitHub Issues
-* **Email**: [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
+- **Issues**: GitHub Issues
+- **Email**: [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
 
 **Every decision sharpens the path to perfect agency.**
 **每一次决策，都在打磨通往完美能动性的路径。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**

@@ -1,9 +1,22 @@
-# WisePick Routing Scaffold Stress Test Report (Isolated Mock)
+# Isolated Routing Scaffold Benchmark
 
-**WisePick Decision API — performance report (v0.1.3)**
+**WisePick Decision API · v0.1.3** · harness output (`tests/stress_test.py`)
 
-- **Wall-clock phase duration** (concurrent segment, `perf_counter`): 11.8092 s
-- **Worker pool** `max_workers`: 512
+- **Concurrent segment wall time** (`perf_counter`): 11.8092 s  
+- **Worker pool** `max_workers`: 512  
+
+## Benchmark scope
+
+This run is an **isolated routing scaffold** benchmark. It measures in-process work for `run_decision` only.
+
+| Included | Excluded (stubbed or bypassed) |
+| :--- | :--- |
+| `run_decision` CPU path: capability extraction, scoring, winner selection | HTTP stack, FastAPI, serialization over the wire |
+| Per-request elapsed time via `perf_counter` (ms) | Live PostgreSQL I/O; real `decisions` inserts |
+| Concurrent load via thread pool (GIL-visible) | Network calls to **Yantrik** |
+| Fixed intent → baseline `provider` / `capability_id` checks | End-to-end API latency under real DB pools / replication lag |
+
+Do not treat these figures as production SLOs. They bound the **routing scaffold** under this harness; deployed latency adds persistence, optional plugins, and runtime overhead.
 
 ## Summary
 
@@ -25,19 +38,18 @@
 | P95 latency (ms), single-threaded | 0.8673 |
 | P99 latency (ms), single-threaded | 1.0430 |
 | Single-threaded mean under 1 ms (scaffold) | Yes |
-| Nikolai-style P95 under 1 ms (single-threaded) | Yes |
-| Provos-style throughput over 1,000 RPS | Yes |
+| Gate: single-threaded P95 &lt; 1 ms | Yes |
+| Gate: concurrent segment RPS ≥ 1,000 | Yes |
 | Errors | 0 |
 | Expected provider / capability | `deepl_translate` / `translation` |
 
-## Methodology
+## Measurement
 
-- Database access, `decisions` persistence, and **Yantrik** outbound calls are **mocked**; the benchmark exercises only the `run_decision` routing scaffold.
-- **Throughput (RPS)** is computed as `total_requests / wall_seconds` for the concurrent segment (end-to-end wall time, not per-thread service rate).
-- **Routing accuracy** is the fraction of responses whose `provider` and `capability_id` match the warmed-up baseline for the fixed intent.
-- **Concurrent latency percentiles (P50 / P95 / P99)** are computed from the **sorted** per-request elapsed times (`perf_counter` delta × 1000), using the same **linear interpolation** rule as scalar `_percentile(...)` for all percentiles.
-- **Single-threaded latency percentiles** use the same method on isolated sequential samples—appropriate for **single-threaded scaffold** characterization free of **GIL contention**.
+- **Throughput (RPS):** `total_requests / wall_seconds` for the concurrent segment (wall-clock for the whole phase, not per-thread service rate).
+- **Routing accuracy:** Share of responses matching the warmed baseline for the fixed task string.
+- **Percentiles (P50 / P95 / P99):** Computed on **sorted** per-request durations (ms); same linear-interpolation quantile function for all listed percentiles.
+- **Concurrent vs sequential:** Concurrent samples include scheduler and **GIL contention**; sequential samples approximate single-threaded scaffold cost without that contention.
 
-## Conclusion
+## Outcome (this run)
 
-**Conclusion:** WisePick provides a deterministic scaffold with sub-millisecond routing on the single-threaded path (mean **0.6033 ms**, P95 **0.8673 ms**). Percentiles (**P50 / P95 / P99**) use **sorted `perf_counter`** samples and the same linear-interpolation quantile estimator for every percentile. Concurrent **P50 / P95 / P99** (**0.5249 / 0.8913 / 55.1734 ms**) reflect **GIL contention** under **1,693.60 RPS** throughput. This run meets **Nikolai's** technical expectations (**P95-centric tail latency** under 1 ms in the isolated scaffold) and **Provos's** technical expectations (**stress / concurrency**: sustained throughput above 1,000 RPS), supporting production-grade agent orchestration.
+Single-threaded path: mean **0.6033 ms**, P95 **0.8673 ms** (below 1 ms). Concurrent segment: **1,693.60 RPS** over the timed window; P50 / P95 / P99 **0.5249 / 0.8913 / 55.1734 ms** under load. Internal gates recorded in the summary table passed for P95 and RPS; concurrent mean remains above 1 ms, consistent with multi-thread scheduling on this profile.
