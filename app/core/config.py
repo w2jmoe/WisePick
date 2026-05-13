@@ -8,7 +8,7 @@ _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/wisepick"
     APP_TITLE: str = "WisePick Decision Router API"
-    APP_VERSION: str = "0.1.3"
+    APP_VERSION: str = "0.1.5"
     # Optional YantrikDB cluster health (state-aware routing); empty = disabled
     YANTRIK_DB_URL: str = ""
     YANTRIK_DB_API_KEY: str = ""

@@ -16,7 +16,7 @@
 
 ---
 
-**🚀 WisePick Decision API (WPDA) v0.1.4**
+**🚀 WisePick Decision API (WPDA) v0.1.5**
 
 > WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.  
 > 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。

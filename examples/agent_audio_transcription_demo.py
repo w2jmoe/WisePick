@@ -108,7 +108,7 @@ def main() -> int:
     result = execute_audio_transcription_ecu(decision)
     success = bool(result.get("simulated")) and not result.get("skipped")
 
-    # ROI payload as JSON string in user_note (v0.1.4 convention — see README_API.md / AGENTS.md)
+    # ROI payload as JSON string in user_note (v0.1.5 convention — see README_API.md / AGENTS.md)
     roi_data = {
         "token_usage": 450,
         "cost_usd": 0.002,
