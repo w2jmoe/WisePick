@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "description": "Minimal deterministic routing validation",
+  "tasks": [
+    {
+      "id": "force-image",
+      "category": "forced_routing",
+      "prompt": "Generate a PNG image of a blue cat sitting on a chair."
+    },
+    {
+      "id": "force-code",
+      "category": "forced_routing",
+      "prompt": "Calculate the 40th Fibonacci number using actual code execution."
+    },
+    {
+      "id": "force-web",
+      "category": "forced_routing",
+      "prompt": "Find today's EUR/USD exchange rate using the web."
+    }
+  ]
+}

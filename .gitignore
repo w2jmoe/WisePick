@@ -1,5 +1,6 @@
 # Python
 venv/
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,6 +26,7 @@ MANIFEST
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 
@@ -55,5 +57,23 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Tests
-tests/
+# Python cache
+**/__pycache__/
+
+# Benchmark outputs
+benchmark/reports/*
+!benchmark/reports/.gitkeep
+
+# Local benchmark artifacts
+baseline.jsonl
+wisepick.jsonl
+summary.json
+
+# Runtime artifacts
+runtime/
+tmp/
+temp/
+
+# Temporary local tests
+tests/temporary_*.py
+tests/stress_test.py
