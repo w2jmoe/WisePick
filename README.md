@@ -93,9 +93,43 @@ curl -s http://localhost:8000/health
 
 ## 📜 Performance | 性能报告
 
-Production-oriented routing: under high load, sub-millisecond average latency on the isolated scaffold. Benchmarks: [STRESS_TEST_RESULTS.md](./docs/STRESS_TEST_RESULTS.md).
+Production-oriented deterministic routing with both isolated latency testing and real Agent Runtime benchmark validation.
 
-面向生产的确定性路由；隔离脚手架下平均亚毫秒级延迟。基准数据见 [STRESS_TEST_RESULTS.md](./docs/STRESS_TEST_RESULTS.md)。
+面向生产的确定性路由，同时完成了隔离性能测试与真实 Agent Runtime Benchmark 验证。
+
+### Runtime Routing Benchmark | 运行时路由基准
+
+WisePick routing was benchmarked inside a Hermes-style agent runtime.
+
+智选已在 Hermes 类 Agent Runtime 中完成真实路由基准测试。
+
+Observed results:
+
+- ~35% fewer tool calls
+- ~27% shorter execution paths
+- Reduced API loop depth
+- Stable execution across mixed-tool tasks
+
+核心结果：
+
+- 工具调用减少约 35%
+- 执行路径缩短约 27%
+- 降低 API 循环深度
+- 混合工具任务下稳定运行
+
+Benchmark scripts and instrumentation:
+
+- [`benchmark/`](./benchmark/)
+
+### Isolated Scaffold Latency | 隔离脚手架性能
+
+Sub-millisecond average latency under isolated routing-core stress testing.
+
+隔离路由核心压测下平均亚毫秒级延迟。
+
+Details:
+
+- [STRESS_TEST_RESULTS.md](./docs/STRESS_TEST_RESULTS.md)
 
 ---
 

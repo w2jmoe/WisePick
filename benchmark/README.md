@@ -58,14 +58,3 @@ Key fields in each JSONL row (see ``append_turn_record`` in ``benchmark/instrume
 
 `summary.json` (compare script) aggregates averages and alignment rates across
 matching `task_id` rows in baseline vs wisepick logs.
-
-## Generated files (do not commit) | 运行产物（勿提交）
-
-The directory **`benchmark/reports/`** is reserved for local outputs:
-
-- `baseline.jsonl`
-- `wisepick.jsonl`
-- `summary.json`
-
-These paths are listed in `.gitignore` (with `benchmark/reports/.gitkeep` tracked so
-the folder exists in a fresh clone).
