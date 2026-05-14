@@ -32,6 +32,15 @@ Your runtime executes; WisePick **routes and records feedback**.
 
 ---
 
+## Runtime Adapter Pattern
+
+- **Runtime** keeps execution ownership, credential ownership, and memory ownership.
+- **WisePick** returns a single routing decision per `POST /v1/decide`; it does not execute tools or retain session state.
+
+Minimal router mapping (Hermes-compatible tool name extraction): [`examples/wisepick_router.py`](./examples/wisepick_router.py).
+
+---
+
 ## HTTP Surface (v0)
 
 | Method | Path | Role |

@@ -203,6 +203,8 @@ requests.post("http://localhost:8000/v1/feedback", json={
 Agent → WisePick → ECU → Local Execution → Feedback
 ```
 
+**Runtime integration reference:** copy-paste adapters and orchestration sketches live under repository root [`examples/`](./examples/) (see also [`docs/ADAPTER_PATTERN.md`](./docs/ADAPTER_PATTERN.md)).
+
 ### Example ECU Response
 
 ```json

@@ -135,31 +135,37 @@ Details:
 
 ## 🔌 Integration | 集成接入
 
-WisePick is a **stateless decision layer**: `/v1/decide` maps intent → ECU only; it does not retain execution state. Run tools in your runtime, then **POST `/v1/feedback`** to close the loop.
+WisePick acts as a stateless decision layer. You own the execution; we provide the routing.
 
-**无状态决策层：** `/v1/decide` 仅完成意图 → ECU 映射；**不保存**执行状态。能力在你侧执行后，通过 **`/v1/feedback`** 回传结果。
+无状态决策层： 仅负责意图路由，不保存执行状态。
 
-**Prerequisite:** Deploy and run the API on your infrastructure ([deployment guide](./README_API.md#quick-start)).
+    Decide: POST /v1/decide maps intent to ECU.
+    Execute: Run tools in your existing runtime.
+    Feedback: POST /v1/feedback to close the optimization loop.
+    Prerequisite: Self-host the API first ([Deployment Guide](https://github.com/w2jmoe/WisePick/blob/main/README_API.md#quick-start)).
 
-**前提条件：** 自托管部署并完成启动（[README_API.md — 部署与运行](./README_API.md#quick-start)）。
+### 3-minute integration | 三分钟接入
+
+Drop-in routing: call WisePick where you used to pick a tool internally (`examples/` on `PYTHONPATH`).
 
 ```python
-import requests
+from wisepick_router import route_task
 
-BASE_URL = "http://localhost:8000"  # replace with your host
+def wisepick_router(task, tools):
+    return route_task(task, tools)
 
-decision = requests.post(
-    f"{BASE_URL}/v1/decide",
-    json={"task": "Generate a technical summary"},
-).json()
+picked = wisepick_router(user_task, openai_tools)["selected_tool"]
 
-# Execute locally: your_agent.run(decision["capability_id"], decision["provider"])
-
-requests.post(
-    f"{BASE_URL}/v1/feedback",
-    json={"decision_id": decision["decision_id"], "success": True},
-)
+# If picked is None:
+#   fall back to your existing selector
+# Else:
+#   bind tool_choice / dispatch directly
 ```
+
+See also:
+
+* [`examples/`](./examples/)
+* [`docs/ADAPTER_PATTERN.md`](./docs/ADAPTER_PATTERN.md)
 
 ---
 
@@ -168,6 +174,14 @@ requests.post(
 Machine-readable contract and runtime loop: [AGENTS.md](./AGENTS.md).
 
 机器可读的集成语义与运行时闭环见 [AGENTS.md](./AGENTS.md)。
+
+### Runtime Adapter Examples
+
+- **Hermes runtime** — [`examples/hermes_adapter.py`](./examples/hermes_adapter.py)
+- **OpenAI `tool_choice` runtime** — [`examples/wisepick_router.py`](./examples/wisepick_router.py) + `openai_tool_choice` / `inject_wisepick_tool_choice` in [`examples/hermes_adapter.py`](./examples/hermes_adapter.py)
+- **Runtime-agnostic orchestration** — [`examples/omnicore_adapter.py`](./examples/omnicore_adapter.py)
+
+Design notes: [`docs/ADAPTER_PATTERN.md`](./docs/ADAPTER_PATTERN.md) · [`examples/`](./examples/)
 
 ---
 
