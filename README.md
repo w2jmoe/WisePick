@@ -321,6 +321,6 @@ Share use cases, routing results, or failure reports.
 
 ---
 
-## License | 许可协议
+## 🌸 License | 许可协议
 
 Apache License 2.0 — see [LICENSE](./LICENSE).
