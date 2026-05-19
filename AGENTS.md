@@ -32,6 +32,12 @@ Your runtime executes; WisePick **routes and records feedback**.
 
 ---
 
+## Architecture
+
+- **Observability:** Background-thread telemetry using Langfuse (`mcp.route_decision.v1` protocol).
+
+---
+
 ## Runtime Adapter Pattern
 
 - **Runtime** keeps execution ownership, credential ownership, and memory ownership.

@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.logger import get_logger
 from app.schemas.decide import DecideRequest, DecideResponse
 from app.services.decision_engine import run_decision
+from app.telemetry.langfuse_emitter import emit_route_decision_async
 
 router = APIRouter(prefix="/v1", tags=["decide"])
 logger = get_logger("decide")
@@ -25,6 +26,8 @@ def decide(request: DecideRequest, response: Response, db: Session = Depends(get
         
         response.headers["X-Decision-ID"] = out.decision_id
         response.headers["X-Observability-Stored"] = "api_decision_logs"
+        print(f"[DEBUG] decide: calling emit_route_decision_async decision_id={out.decision_id}")
+        emit_route_decision_async(request, out)
         return out
     except ValueError as e:
         # 记录错误

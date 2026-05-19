@@ -168,6 +168,21 @@ WisePick can optionally integrate with **YantrikDB** during `/v1/decide` so repl
 
 ---
 
+## Optional Langfuse routing telemetry
+
+After each successful `/v1/decide`, WisePick may emit **`mcp.route_decision.v1`** to Langfuse on a background thread (no impact on routing latency when disabled).
+
+**Environment variables** (see `.env.example`):
+
+- **`WISEPICK_LANGFUSE_PUBLIC_KEY`** / **`WISEPICK_LANGFUSE_SECRET_KEY`** — required together to enable; if either is empty, telemetry is skipped.
+- **`WISEPICK_LANGFUSE_HOST`** — Langfuse base URL (default `https://cloud.langfuse.com`).
+- **`WISEPICK_LANGFUSE_OTEL`** — `true` → OTLP HTTP (`/api/public/otel/v1/traces`); `false` (default) → batch ingestion (`/api/public/ingestion`).
+- **`WISEPICK_LANGFUSE_ROUTER_NAME`** — `router_name` in the contract (default `wisepick`).
+
+Pass **`trace_id`** / **`session_id`** (or `langfuse_trace_id` / `langfuse_session_id`) in the decide request **`context`** to correlate with upstream traces. Task text, full context, and constraints are **not** exported.
+
+---
+
 ## Minimal Integration Example
 
 ```python
@@ -266,6 +281,13 @@ def execute_capability(capability_id: str, provider: str, task: str):
   "message": "Human-readable description"
 }
 ```
+
+---
+
+## Configuration
+
+- `WISEPICK_LANGFUSE_PUBLIC_KEY` / `SECRET_KEY`: API credentials for Langfuse ingestion.
+- `WISEPICK_LANGFUSE_HOST`: Optional custom host (default: https://cloud.langfuse.com).
 
 ---
 

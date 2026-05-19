@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv() # 这行代码会强制 Python 寻找并读取当前目录下的 .env 文件
+
 from contextlib import asynccontextmanager 
 
 from fastapi import FastAPI
