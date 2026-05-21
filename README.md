@@ -79,9 +79,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 2. 接入 SDK (Integration)
 
-> Check out the [15-Minute Developer Integration Guide](./README_API.md%2315-minute-integration-checklist) for rapid SDK setup, `tool_choice` hard-injection, and full-loop feedback implementation.
+> Check out the [15-Minute Developer Integration Guide](./README_API.md#15-minute-integration-checklist) for rapid SDK setup, `tool_choice` hard-injection, and full-loop feedback implementation.
 
-> 查看 [15分钟开发者接入指南](./README_API.md%2315-minute-integration-checklist)，获取 SDK 快速接入、`tool_choice` 硬强制注入与反馈闭环全链路实现方案。 
+> 查看 [15分钟开发者接入指南](./README_API.md#15-minute-integration-checklist)，获取 SDK 快速接入、`tool_choice` 硬强制注入与反馈闭环全链路实现方案。 
 
 ---
 
@@ -276,7 +276,7 @@ Share use cases, routing results, or failure reports.
 欢迎反馈接入场景、路由结果或失败案例。
 
 * **Issues:** [GitHub Issues](https://github.com/w2jmoe/WisePick/issues)
-* **Email:** [w2jmoe@gmail.com]()
+* **Email:** w2jmoe@gmail.com
 
 **Every routing decision is observable, feedback-driven, and reproducible.** **每一次路由决策可观测、可反馈、可复现。**
 
