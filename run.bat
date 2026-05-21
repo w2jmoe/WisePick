@@ -13,5 +13,5 @@ call venv\Scripts\activate
 echo [2/2] Starting WisePick API (Connecting to Supabase)...
 :: 启动服务
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
+ 
 pause
