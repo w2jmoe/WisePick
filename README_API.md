@@ -122,16 +122,23 @@ def on_tool_finished(ecu: dict, *, ok: bool, err: str | None = None):
     did = ecu.get("decision_id")
     if not did:
         return
-    wp.feedback(did, success=ok, error_message=err)
+    wp.feedback(
+        did,
+        success=ok,
+        latency_ms=latency_ms,
+        error_message=err,
+        token_usage={"input": 1200, "output": 450},
+        result_quality=0.92 if ok else None,
+    )
 
 # success path (after local execute)
-on_tool_finished(ecu, ok=True)
+on_tool_finished(ecu, ok=True, latency_ms=1200)
 
 # failure path
-on_tool_finished(ecu, ok=False, err="timeout after 300s")
+on_tool_finished(ecu, ok=False, latency_ms=300000, err="timeout after 300s")
 ```
 
-Optional ROI metadata: pass a JSON string via `error_message` on failure, or extend the client later with `user_note` / `latency_ms` on the raw `/v1/feedback` body. Skipping feedback disables learning for that decision.
+Skipping feedback disables learning for that decision.
 
 **Closed loop:** `decide` → execute mapped handler → `feedback` → `capability_stats` updates next `decide`.
 
@@ -164,11 +171,13 @@ Optional ROI metadata: pass a JSON string via `error_message` on failure, or ext
   "decision_id": "dec_abc123def4567890",
   "success": true,
   "latency_ms": 1200,
-  "user_note": "{\"token_usage\": 450, \"cost_usd\": 0.01}"
+  "token_cost": { "input": 1200, "output": 450 },
+  "result_quality": 0.92,
+  "user_note": "optional free-text error or context"
 }
 ```
 
-`user_note` is a string; prefer serialized JSON for cost/ROI signals.
+`latency_ms` is required. Use `token_cost` and `result_quality` for ROI aggregates (`avg_token_cost`, `avg_result_quality`); do not embed them in `user_note`.
 
 ### Scoring (v0)
 

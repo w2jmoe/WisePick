@@ -50,9 +50,29 @@ class WisePickClient:
         self,
         decision_id: str,
         success: bool,
+        latency_ms: int,
+        *,
         error_message: str | None = None,
+        token_usage: dict | None = None,
+        result_quality: float | None = None,
     ) -> dict:
-        body: Dict[str, Any] = {"decision_id": decision_id, "success": success}
+        """POST /v1/feedback with structured ROI fields aligned to FeedbackRequest.
+
+        Reporting latency_ms, token_cost (input/output), and result_quality feeds
+        tool_stats aggregates (success_rate, avg_latency_ms, avg_token_cost) so future
+        decide calls can rank providers by real execution cost and quality—not guesswork.
+        """
+        body: Dict[str, Any] = {
+            "decision_id": decision_id,
+            "success": success,
+            "latency_ms": latency_ms,
+        }
         if error_message:
             body["user_note"] = error_message
+        if token_usage:
+            tc = {k: token_usage[k] for k in ("input", "output") if k in token_usage}
+            if tc:
+                body["token_cost"] = tc
+        if result_quality is not None:
+            body["result_quality"] = result_quality
         return self._post("/v1/feedback", body) or {}

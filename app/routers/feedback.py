@@ -3,93 +3,127 @@ Feedback router for WisePick API v0.
 Records tool execution outcomes to update success metrics.
 """
 from datetime import datetime
+from typing import Any, Optional
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.logger import get_logger
+from app.schemas.feedback import FeedbackRequest
+from app.telemetry.langfuse_emitter import emit_execution_feedback_async
 
 router = APIRouter(prefix="/v1", tags=["feedback"])
 logger = get_logger("feedback")
 
 
-class FeedbackRequest(BaseModel):
-    """Feedback request model."""
-    decision_id: str
-    success: bool
-    latency_ms: int = None
-    user_note: str = ""
-
-
 @router.post("/feedback")
 def record_feedback(
     request: FeedbackRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> dict:
     """
     Record feedback for a decision.
-    
-    Args:
-        request: Feedback request containing decision_id and success
-    
-    Returns:
-        {"ok": true} if feedback was recorded successfully
     """
-    # 记录反馈接收
-    logger.info(f'decision_id={request.decision_id} success={request.success}')
-    
-    # Validate that the decision exists and get the tool_key
+    logger.info(
+        f"decision_id={request.decision_id} success={request.success} "
+        f"latency_ms={request.latency_ms}"
+    )
+
     decision = _get_decision(db, request.decision_id)
     if not decision:
-        logger.error(f'decision not found: {request.decision_id}')
+        logger.error(f"decision not found: {request.decision_id}")
         return JSONResponse(
             status_code=404,
-            content={"error": "not_found", "message": "Decision not found"}
+            content={"error": "not_found", "message": "Decision not found"},
         )
-    
+
     tool_key = decision["selected_tool_key"]
-    
-    # Record feedback
+    token_cost_dict = (
+        request.token_cost.model_dump(exclude_none=True) if request.token_cost else None
+    )
+
     try:
-        _insert_feedback(db, request.decision_id, tool_key, request.success, request.latency_ms, request.user_note)
-        
-        # 记录反馈成功
-        logger.info(f'decision_id={request.decision_id} tool={tool_key} success={request.success}')
-        
+        _insert_feedback(
+            db,
+            decision_id=request.decision_id,
+            tool_key=tool_key,
+            success=request.success,
+            latency_ms=request.latency_ms,
+            token_cost=token_cost_dict,
+            result_quality=request.result_quality,
+            user_note=request.user_note,
+        )
+        logger.info(
+            f"decision_id={request.decision_id} tool={tool_key} success={request.success}"
+        )
+        emit_execution_feedback_async(
+            decision_id=request.decision_id,
+            tool_key=tool_key,
+            success=request.success,
+            latency_ms=request.latency_ms,
+            token_cost=token_cost_dict,
+            result_quality=request.result_quality,
+            decision_context=decision.get("context"),
+        )
         return {"ok": True}
     except Exception as e:
-        # 记录反馈失败
-        logger.error(f'feedback failed: decision_id={request.decision_id} error={str(e)}')
+        logger.error(f"feedback failed: decision_id={request.decision_id} error={str(e)}")
         return JSONResponse(
             status_code=500,
-            content={"error": "internal_error", "message": f"Failed to record feedback: {str(e)}"}
+            content={"error": "internal_error", "message": f"Failed to record feedback: {str(e)}"},
         )
 
 
-def _get_decision(db: Session, decision_id: str) -> dict:
-    """Get decision by ID."""
+def _get_decision(db: Session, decision_id: str) -> Optional[dict[str, Any]]:
+    """Get decision by ID (tool + context for Langfuse correlation)."""
     result = db.execute(
-        text("SELECT selected_tool_key FROM decisions WHERE decision_id = :decision_id"),
-        {"decision_id": decision_id}
+        text(
+            "SELECT selected_tool_key, context FROM decisions WHERE decision_id = :decision_id"
+        ),
+        {"decision_id": decision_id},
     ).fetchone()
-    
+
     if result:
-        return {"selected_tool_key": result[0]}
+        ctx = result[1]
+        if isinstance(ctx, str):
+            import json
+
+            try:
+                ctx = json.loads(ctx)
+            except json.JSONDecodeError:
+                ctx = {}
+        return {
+            "selected_tool_key": result[0],
+            "context": ctx if isinstance(ctx, dict) else {},
+        }
     return None
 
 
-def _insert_feedback(db: Session, decision_id: str, tool_key: str, success: bool, 
-                    latency_ms: int, user_note: str) -> None:
-    """Insert feedback record."""
+def _insert_feedback(
+    db: Session,
+    *,
+    decision_id: str,
+    tool_key: str,
+    success: bool,
+    latency_ms: int,
+    token_cost: Optional[dict[str, int]],
+    result_quality: Optional[float],
+    user_note: str,
+) -> None:
+    """Insert feedback record with ROI fields."""
+    import json
+
     db.execute(
         text("""
-            INSERT INTO feedback 
-            (decision_id, tool_key, outcome, success, latency_ms, user_note, trace, created_at)
-            VALUES 
-            (:decision_id, :tool_key, :outcome, :success, :latency_ms, :user_note, :trace, :created_at)
+            INSERT INTO feedback
+            (decision_id, tool_key, outcome, success, latency_ms, token_cost,
+             result_quality, user_note, trace, created_at)
+            VALUES
+            (:decision_id, :tool_key, :outcome, :success, :latency_ms,
+             :token_cost, :result_quality, :user_note, :trace, :created_at)
         """),
         {
             "decision_id": decision_id,
@@ -97,9 +131,11 @@ def _insert_feedback(db: Session, decision_id: str, tool_key: str, success: bool
             "outcome": "completed",
             "success": success,
             "latency_ms": latency_ms,
-            "user_note": user_note,
+            "token_cost": json.dumps(token_cost) if token_cost else None,
+            "result_quality": result_quality,
+            "user_note": user_note or "",
             "trace": "{}",
-            "created_at": datetime.utcnow()
-        }
+            "created_at": datetime.utcnow(),
+        },
     )
     db.commit()

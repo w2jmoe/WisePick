@@ -22,6 +22,7 @@ from app.schemas.decide import DecideRequest, DecideResponse
 logger = get_logger("langfuse_emitter")
 
 SCHEMA_VERSION = "mcp.route_decision.v1"
+EXECUTION_FEEDBACK_SCHEMA = "mcp.execution_feedback.v1"
 ROUTER_NAME_DEFAULT = "wisepick"
 
 _CONTEXT_TRACE_KEYS = ("trace_id", "langfuse_trace_id")
@@ -107,6 +108,14 @@ class LangfuseEmitter:
         with urllib.request.urlopen(req, timeout=self.timeout_seconds) as resp:
             return int(resp.status)
 
+    def emit_execution_feedback(self, contract: dict[str, Any]) -> None:
+        if not self.enabled:
+            return
+        try:
+            self._post_execution_feedback_batch(contract)
+        except Exception:
+            pass
+
     def _post_ingestion_batch(self, contract: dict[str, Any]) -> None:
         trace_id = contract.get("trace_id") or contract["decision_id"]
         span_id = f"{contract['decision_id']}:route"
@@ -132,7 +141,33 @@ class LangfuseEmitter:
                         "metadata": contract.get("metadata"),
                         "output": contract,
                     },
-                }
+                },
+            ]
+        }
+        self._post_json(f"{self.host}/api/public/ingestion", batch)
+
+    def _post_execution_feedback_batch(self, contract: dict[str, Any]) -> None:
+        trace_id = contract.get("trace_id") or contract["decision_id"]
+        parent_span_id = contract.get("parent_span_id") or f"{contract['decision_id']}:route"
+        exec_span_id = f"{contract['decision_id']}:execution"
+        ts = _iso_timestamp()
+        batch = {
+            "batch": [
+                {
+                    "id": f"{exec_span_id}:create",
+                    "type": "span-create",
+                    "timestamp": ts,
+                    "body": {
+                        "traceId": trace_id,
+                        "id": exec_span_id,
+                        "parentObservationId": parent_span_id,
+                        "name": EXECUTION_FEEDBACK_SCHEMA,
+                        "startTime": ts,
+                        "endTime": ts,
+                        "metadata": contract.get("metadata"),
+                        "output": contract,
+                    },
+                },
             ]
         }
         self._post_json(f"{self.host}/api/public/ingestion", batch)
@@ -148,3 +183,65 @@ def emit_route_decision_async(request: DecideRequest, response: DecideResponse, 
     emitter = get_langfuse_emitter()
     if not emitter.enabled: return
     _executor.submit(emitter.emit_route_decision, request, response, router_name=router_name)
+
+
+def build_execution_feedback_payload(
+    *,
+    decision_id: str,
+    tool_key: str,
+    success: bool,
+    latency_ms: int,
+    token_cost: dict[str, Any] | None = None,
+    result_quality: float | None = None,
+    decision_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build mcp.execution_feedback.v1 contract for Langfuse (linked to decide trace)."""
+    ctx = decision_context if isinstance(decision_context, dict) else {}
+    trace_id = _extract_id(ctx, _CONTEXT_TRACE_KEYS) or decision_id
+    session_id = _extract_id(ctx, _CONTEXT_SESSION_KEYS)
+    route_span_id = f"{decision_id}:route"
+    args: dict[str, Any] = {
+        "success": bool(success),
+        "latency_ms": int(latency_ms),
+        "tool_key": tool_key,
+    }
+    if token_cost:
+        args["token_cost"] = token_cost
+    if result_quality is not None:
+        args["result_quality"] = float(result_quality)
+    payload: dict[str, Any] = {
+        "metadata": {"schema_version": EXECUTION_FEEDBACK_SCHEMA},
+        "decision_id": decision_id,
+        "parent_span_id": route_span_id,
+        "arguments": args,
+    }
+    payload["trace_id"] = trace_id
+    if session_id:
+        payload["session_id"] = session_id
+    return payload
+
+
+def emit_execution_feedback_async(
+    *,
+    decision_id: str,
+    tool_key: str,
+    success: bool,
+    latency_ms: int,
+    token_cost: dict[str, Any] | None = None,
+    result_quality: float | None = None,
+    decision_context: dict[str, Any] | None = None,
+) -> None:
+    """Emit execution feedback span on the same Langfuse trace as the prior decide."""
+    emitter = get_langfuse_emitter()
+    if not emitter.enabled:
+        return
+    contract = build_execution_feedback_payload(
+        decision_id=decision_id,
+        tool_key=tool_key,
+        success=success,
+        latency_ms=latency_ms,
+        token_cost=token_cost,
+        result_quality=result_quality,
+        decision_context=decision_context,
+    )
+    _executor.submit(emitter.emit_execution_feedback, contract)

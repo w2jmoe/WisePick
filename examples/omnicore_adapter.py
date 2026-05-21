@@ -38,11 +38,11 @@ def one_turn(task: str) -> None:
     if not did:
         return
     if not cap or d.get("callable") is False:
-        _post("/v1/feedback", {"decision_id": did, "success": False})
+        _post("/v1/feedback", {"decision_id": did, "success": False, "latency_ms": 0})
         return
     fn = LOCAL_TOOLS.get(cap)
     if fn is None:
-        _post("/v1/feedback", {"decision_id": did, "success": False})
+        _post("/v1/feedback", {"decision_id": did, "success": False, "latency_ms": 0})
         return
     fn(task)
     _post(
@@ -50,7 +50,8 @@ def one_turn(task: str) -> None:
         {
             "decision_id": did,
             "success": True,
-            "user_note": json.dumps({"capability_id": cap}),
+            "latency_ms": 1,
+            "result_quality": 1.0,
         },
     )
 

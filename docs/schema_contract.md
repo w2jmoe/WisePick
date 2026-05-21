@@ -21,37 +21,46 @@ This schema contract represents the **final stable state** of the WisePick API d
 
 ---
 
+## 6. Feedback contract (ROI learning — v0.1.8+)
+
+`POST /v1/feedback` accepts structured execution outcomes. Pydantic: `app/schemas/feedback.py`.
+
+| Field | Type | Required | Storage | Aggregation (`tool_stats`) |
+|-------|------|----------|---------|----------------------------|
+| `decision_id` | string | yes | `feedback.decision_id` | — |
+| `success` | boolean | yes | `feedback.success` | `success_rate` |
+| `latency_ms` | integer | yes | `feedback.latency_ms` | `avg_latency_ms` |
+| `token_cost` | object | no | `feedback.token_cost` JSONB `{input, output}` | `avg_token_cost` (input+output per row) |
+| `result_quality` | float | no | `feedback.result_quality` 0.0–1.0 | `avg_result_quality` |
+| `user_note` | string | no | `feedback.user_note` | — (unstructured only) |
+
+**Do not** pack `latency_ms`, tokens, or quality into `user_note`; use first-class fields so ROI can be aggregated and traced.
+
+---
+
 ## 7. Future Schema Evolution (v1+)
 
-The following metrics will be added to support advanced capability routing:
-
-### **Planned New Fields for `tool_stats` (or `capability_stats`)**
+### **Implemented in `tool_stats` (v0.1.8+)**
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `avg_latency_ms` | INTEGER | Average execution latency for capability selection |
+| `avg_latency_ms` | numeric | Mean execution latency from feedback |
+| `avg_token_cost` | numeric | Mean (input + output) tokens per feedback row |
+| `avg_result_quality` | numeric | Mean quality score |
+
+### **Planned for routing score (v1+ extensions)**
+
+| Field | Type | Purpose |
+|-------|------|---------|
 | `p95_latency_ms` | INTEGER | 95th percentile latency for QoS guarantees |
-| `execution_cost` | DECIMAL | Cost per execution (tokens, API calls, etc.) |
+| `execution_cost` | DECIMAL | USD or normalized cost per execution |
 | `stability_score` | DECIMAL | Consistency of execution success (0.0-1.0) |
 | `capability_tags` | JSON | Semantic tags for capability clustering |
 | `embedding_vector` | VECTOR | For semantic similarity matching (future) |
 
-### **Purpose**
-
-These metrics enable Agent-driven capability routing based on:
-- **Latency requirements**: Choose faster capabilities for time-sensitive tasks
-- **Cost optimization**: Select cost-effective providers for the same capability
-- **Quality assurance**: Route to more stable capabilities for critical operations
-- **Semantic matching**: Find capabilities by meaning, not just keywords
-
-### **Implementation Note**
-
-These fields are NOT included in v0 to maintain minimalism.
-They will be added incrementally as the system evolves toward
-execution-data-driven capability routing.
-
-Current v0 focuses on: `capability_match + execution_success_rate + bootstrap_weight`
-Future v1+ will add: `latency + cost + stability + semantic_similarity`
+Current scoring (`decision_engine._compute_score`):  
+`final = base * efficacy`, where `base = capability_match * 0.70 + success_rate * 0.20 + bootstrap * 0.10` and  
+`efficacy = result_quality / (log(max(avg_latency_ms, 100)) * log(max(avg_token_cost, 10)))`.
 
 ---
 

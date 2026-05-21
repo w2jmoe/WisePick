@@ -6,7 +6,9 @@ import pytest
 
 from app.schemas.decide import DecideRequest, DecideResponse
 from app.telemetry.langfuse_emitter import (
+    EXECUTION_FEEDBACK_SCHEMA,
     LangfuseEmitter,
+    build_execution_feedback_payload,
     build_route_decision_payload,
     emit_route_decision_async,
     get_langfuse_emitter,
@@ -55,6 +57,24 @@ def test_build_route_decision_payload_contract():
     assert payload["arguments"]["latency_ms"] == 2
     assert payload["arguments"]["candidate_count"] == 3
     assert "api_key" not in str(payload)
+
+
+def test_build_execution_feedback_payload_links_trace():
+    payload = build_execution_feedback_payload(
+        decision_id="dec_test123",
+        tool_key="feishu_minutes",
+        success=True,
+        latency_ms=1200,
+        token_cost={"input": 100, "output": 50},
+        result_quality=0.9,
+        decision_context={"trace_id": "trace-abc", "session_id": "sess-1"},
+    )
+    assert payload["metadata"]["schema_version"] == EXECUTION_FEEDBACK_SCHEMA
+    assert payload["trace_id"] == "trace-abc"
+    assert payload["parent_span_id"] == "dec_test123:route"
+    assert payload["arguments"]["latency_ms"] == 1200
+    assert payload["arguments"]["token_cost"]["input"] == 100
+    assert payload["arguments"]["result_quality"] == 0.9
 
 
 def test_emitter_disabled_without_keys():

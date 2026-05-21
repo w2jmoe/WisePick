@@ -16,10 +16,13 @@
 
 ---
 
-**🚀 WisePick Decision API (WPDA) v0.1.8**
+**🚀 WisePick Decision API (WPDA) v0.1.9**
 
-> WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.  
-> 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。
+* WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.
+* 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。
+> 
+*  **Help us refine:** If you find the docs confusing, please [open an issue](https://github.com/w2jmoe/WisePick/issues)—we are aggressively refining our integration flow.
+*  **反馈建议：** 若您在接入中遇到任何困惑，请 [提交 Issue](https://github.com/w2jmoe/WisePick/issues)，我们正在全力优化文档与接入体验。
 
 ---
 
@@ -62,7 +65,7 @@ WisePick replaces guessing with learned routing.
 >
 > **⚠️ 生产部署要求：** WisePick API 是您生产产品的**核心基础设施**，必须在生产环境中独立部署。本地测试仅用于验证逻辑；发布产品时，请务必将 WisePick API Server 纳入您的生产容器化部署清单。未部署在线 API 的 Agent 将回退至低效随机路由，失去确定性。
 
-### 1. 部署决策服务 (Server)
+### 1. Server (部署决策服务)
 Deploy the WisePick API locally. 
 部署本地智选 API 服务。
 
@@ -77,11 +80,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```
 
-### 2. 接入 SDK (Integration)
+### 2. Integration (接入 SDK)
 
-> Check out the [15-Minute Developer Integration Guide](./README_API.md%2315-minute-integration-checklist) for rapid SDK setup, `tool_choice` hard-injection, and full-loop feedback implementation.
+> Check out the [15-Minute Developer Integration Guide](./README_API.md#15-minute-integration-checklist) for rapid SDK setup, `tool_choice` hard-injection, and full-loop feedback implementation.
 
-> 查看 [15分钟开发者接入指南](./README_API.md%2315-minute-integration-checklist)，获取 SDK 快速接入、`tool_choice` 硬强制注入与反馈闭环全链路实现方案。 
+> 查看 [15分钟开发者接入指南](./README_API.md#15-minute-integration-checklist)，获取 SDK 快速接入、`tool_choice` 硬强制注入与反馈闭环全链路实现方案。 
 
 ---
 
@@ -105,10 +108,10 @@ Production-oriented deterministic routing vs. native LLM tool-calling. Tested in
 
 | Metrics | Native LLM Calling | WisePick Router | Optimization |
 | --- | --- | --- | --- |
-| **Tool Calls** | Baseline | **~35% fewer** | Avoid redundant & hallucinated calls |
-| **Execution Path** | Baseline | **~27% shorter** | Fast convergence, eliminate infinite loops |
-| **Core Latency** | Variable | **Sub-millisecond** | Non-blocking decision making |
-| **API Token Cost** | High | **Drastically Reduced** | Zero prompt bloat across long sessions |
+| **Execution Convergence** | Baseline | **~31% Faster** | Path shrunk from 6.33 to 4.33 vs previous run |
+| **Session Latency** | Baseline | **~62% Saved** | Total benchmark runtime cut from 12m to 4m30s |
+| **Token Cost Efficiency** | High | **~33% Reduced** | Session token expenses dropped from $0.15 to $0.10 |
+| **First-Tool Alignment** | Experimental | **100% Locked** | Zero hallucinated tool-selection on first turn |
 
 ### Key Capabilities | 核心优势
 
@@ -260,13 +263,15 @@ Execution outcomes become portable capability experience—not repeated trial an
 
 ## 🗺️ Roadmap | 路线图
 
-* **✅v0.1**: Core Capability Routing · 核心路由层实现
-Sub-millisecond isolated core latency.
-ECU protocol & feedback loop logic.
-* **🔄v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
-* **🔄v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
-* **🔄Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
-
+* **✅v0.1**: Core Infrastructure · 核心路由与反馈闭环
+  - Deterministic ECU routing & Feedback loop.
+  - Multi-dimensional ROI metrics aggregation (Latency/Cost/Quality).
+* **🔄v0.2**: Dynamic ROI Optimization · 动态效能优化
+  - Scoring engine upgrade: Efficacy-based tool selection.
+  - Automatic fallback strategy based on real-time tool performance.
+* **🔄v0.3**: Collective Decision Memory · 集体决策记忆
+  - Cross-agent experience sharing.
+  - Global capability indexing & optimization.
 ---
 
 ## 🤗 Feedback & Integration | 反馈与集成
@@ -276,7 +281,7 @@ Share use cases, routing results, or failure reports.
 欢迎反馈接入场景、路由结果或失败案例。
 
 * **Issues:** [GitHub Issues](https://github.com/w2jmoe/WisePick/issues)
-* **Email:** [w2jmoe@gmail.com]()
+* **Email:** w2jmoe@gmail.com
 
 **Every routing decision is observable, feedback-driven, and reproducible.** **每一次路由决策可观测、可反馈、可复现。**
 

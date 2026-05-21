@@ -69,9 +69,11 @@ WisePick does not perform the invocation; the value only selects which executor 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `decision_id` | string | yes | From the ECU that initiated the execution |
-| `success` | boolean | yes | Drives `capability_stats` |
-| `latency_ms` | integer | no | Wall-clock execution duration |
-| `user_note` | string | no | Prefer JSON-serialized ROI/cost object |
+| `success` | boolean | yes | Drives `tool_stats.success_rate` |
+| `latency_ms` | integer | yes | Wall-clock execution duration (ms), `>= 0` |
+| `token_cost` | object | no | `{ "input": int, "output": int }` — token ROI; aggregated as `avg_token_cost` |
+| `result_quality` | number | no | `0.0`–`1.0` — subjective or automated quality signal |
+| `user_note` | string | no | Free-text only (errors, context); do not embed structured ROI here |
 
 ### Closed loop (state machine)
 
@@ -123,7 +125,9 @@ Agents and scaffolds should emit or consume a single JSON file (e.g. `wisepick.a
   },
   "feedback": {
     "required_after_execution": true,
-    "user_note_json_roi": true
+    "latency_ms_required": true,
+    "token_cost": { "input": 1200, "output": 450 },
+    "result_quality": 0.92
   }
 }
 ```
