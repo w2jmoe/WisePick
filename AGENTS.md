@@ -1,289 +1,10 @@
-# AGENTS.md — WisePick Decision API (Machine Reader)
+# AGENTS.md — WisePick Agent Automation Spec
 
-> [!TIP]
-> **Machine-Optimized Spec:** This document is structured for Coding Agents (Cursor, Cline, Devin, etc.).
-> 
-> **Human developers:** refer to [README_API.md](./README_API.md) for deployment and environment setup.
+**Audience:** Coding agents, runtime configurators, CI generators (Cursor, Cline, Devin, OpenHands, etc.).
 
-**Audience:** AI Agent Runtime / Coding Agents only (Cursor, Cline, Claude Code, OpenHands, Devin, etc.).
+**Implementation (client, hooks, `tool_choice`, deploy):** [README_API.md](./README_API.md) only. This file is the machine-readable contract and auto-config schema—not source-level integration steps.
 
-**Prerequisite:** Index [README_API.md](./README_API.md) first. Complete deployment, environment, and configuration there. This file does **not** duplicate install or ops steps.
-
-**Scope:** Agent runtime semantics + decision workflow only.
-
----
-
-## What WisePick Is
-
-- **Decision layer:** Maps a natural-language **task** → one **Executable Capability Unit (ECU)**.
-- **Routing + learning:** Uses capability match, execution success stats, and bootstrap weights (see `README_API.md` scoring).
-- **Outputs:** `decision_id`, `capability_id`, `provider`, `execution_type`, `callable`, `confidence`, plus `reason`, `explain`, `trace`.
-
----
-
-## What WisePick Is Not
-
-- **Not** an MCP server/runtime.
-- **Not** a tool executor (does not call external APIs, MCP tools, or local functions).
-- **Not** a workflow engine or orchestrator.
-- **Not** responsible for credential management, retries, or side-effect handling at execution time.
-
-Your runtime executes; WisePick **routes and records feedback**.
-
----
-
-## Architecture
-
-- **Observability:** Background-thread telemetry using Langfuse (`mcp.route_decision.v1` protocol).
-
----
-
-## Runtime Adapter Pattern
-
-- **Runtime** keeps execution ownership, credential ownership, and memory ownership.
-- **WisePick** returns a single routing decision per `POST /v1/decide`; it does not execute tools or retain session state.
-
-Minimal router mapping (Hermes-compatible tool name extraction): [`examples/wisepick_router.py`](./examples/wisepick_router.py).
-
----
-
-## HTTP Surface (v0)
-
-| Method | Path | Role |
-|--------|------|------|
-| GET | `/health` | Liveness |
-| POST | `/v1/decide` | Task → ECU |
-| POST | `/v1/feedback` | Outcome → updates routing stats |
-
-Base URL example: `http://localhost:8000` (replace with deployed host).
-
----
-
-## Calling `/v1/decide`
-
-**Request (minimal):**
-
-```json
-{
-  "task": "Transcribe today's meeting audio"
-}
-```
-
-**Request (with optional fields):**
-
-```json
-{
-  "task": "Summarize this technical document",
-  "context": {
-    "language": "Chinese",
-    "domain": "engineering"
-  },
-  "constraints": {
-    "max_cost": 10.0,
-    "timeout_seconds": 300
-  }
-}
-```
-
-**Response (ECU-shaped excerpt):**
-
-```json
-{
-  "decision_id": "dec_abc123def4567890",
-  "capability_id": "audio_transcription",
-  "execution_type": "api",
-  "provider": "feishu_minutes",
-  "callable": true,
-  "confidence": 0.75,
-  "reason": "...",
-  "explain": {},
-  "trace": {}
-}
-```
-
-**Legacy:** `tool_key` may appear and mirrors `provider` for backward compatibility; prefer `provider` + `capability_id` for new integrations.
-
----
-
-## After ECU Returns — Execution Contract
-
-1. **Persist `decision_id`** until feedback is sent or the turn is abandoned (lost feedback = no learning signal).
-2. **Resolve execution locally:**
-   - Use `capability_id` as the **semantic** capability key.
-   - Use `provider` as the **implementation** selector inside your adapter layer.
-   - Use `execution_type` to choose **transport** (`api` | `mcp` | `function_call`).
-3. **If `callable === false`:** Do not assume a direct invoke path exists; escalate (human, different planner step, or richer context) instead of blind tool spam.
-4. **Execute** your mapped MCP tool / HTTP client / registered function — WisePick does not perform this step.
-
----
-
-## ECU Interpretation Rules
-
-| Field | Meaning |
-|-------|---------|
-| **`capability_id`** | Stable **type** of work (e.g. `audio_transcription`, `image_generation`). Primary key for your **capability → handler** map. Prefer routing on this over raw product names. |
-| **`provider`** | **Which implementation** satisfies that capability for this decision (e.g. `feishu_minutes`, `openai`). Select credentials, endpoints, or MCP server routing using this **together with** `capability_id`. |
-| **`execution_type`** | Intended **invocation mechanism**: `api` (HTTP/SDK), `mcp` (MCP tool call), `function_call` (in-process function). Your adapter picks the matching executor; WisePick does not invoke it. |
-| **`callable`** | **`true`:** Safe to attempt automated execution via your mapped path (subject to your policies). **`false`:** Routing is informational or execution is not assumed safe/direct — avoid brute-force trying tools. |
-| **`confidence`** | Router score **reflecting match + stats + bootstrap** (not calibrated probability). Higher → stronger suggestion to use this ECU; still validate constraints locally. |
-
----
-
-## Mapping ECU → Local MCP / API / Skill
-
-**Pattern:**
-
-```text
-(capability_id, provider, execution_type) → local_executor
-```
-
-**Example registry (conceptual):**
-
-```json
-{
-  "audio_transcription": {
-    "feishu_minutes": { "execution_type": "api", "invoke": "skills/feishu_transcribe" },
-    "tongyi_tingwu": { "execution_type": "api", "invoke": "tools/tingwu_client" }
-  }
-}
-```
-
-**Resolution order (recommended):**
-
-1. Lookup by `capability_id`.
-2. Narrow by `provider`.
-3. Branch on `execution_type` (REST vs MCP vs function).
-
-**MCP:** Translate to a specific tool name + server config **you** maintain; WisePick does not list MCP tool IDs.
-
-**Skills / plugins:** Bind under `capability_id`; use `provider` for variant-specific parameters.
-
----
-
-## Calling `/v1/feedback`
-
-**Request:**
-
-```json
-{
-  "decision_id": "dec_abc123def4567890",
-  "success": true,
-  "latency_ms": 1200,
-  "user_note": "{\"token_usage\": 450, \"cost_usd\": 0.01}"
-}
-```
-
-**`user_note` (optional string):** Strongly recommended: embed a **JSON object serialized as a string** so execution cost / ROI signals stay structured without any database migration—e.g. token counts, USD spend, or other metrics your runtime already tracks. Example payload shape:
-
-```json
-{"token_usage": 450, "cost_usd": 0.01}
-```
-
-Serialize that object to a string and send it as `user_note`. Same pattern applies when explaining failures (constraint text plus optional numeric fields). Preserves a machine-readable convention for future ROI-aware routing logic.
-
-**Response:**
-
-```json
-{ "ok": true }
-```
-
-**Rules:**
-
-- Must reference a **real** `decision_id` from a prior `/v1/decide` response (404 if unknown).
-- `success` drives future routing via capability stats.
-- `latency_ms` — optional wall-clock signal.
-- `user_note` — optional; **prefer** JSON-as-string ROI/cost metadata as above for observability and downstream analytics.
-
----
-
-## Feedback Loop (Closed Loop)
-
-```text
-intent
-  → POST /v1/decide
-  → receive ECU (store decision_id)
-  → map ECU → local execution
-  → execute
-  → POST /v1/feedback (success/failure + latency)
-  → capability_stats updated
-  → next POST /v1/decide benefits from execution history
-```
-
-**Failure path:** Send `success: false` with optional `user_note` (plain text or JSON string per above) explaining constraint violations — still closes the loop.
-
----
-
-## Avoid Blind Trial-and-Error
-
-- Do **not** enumerate all tools/MCP resources when `/v1/decide` returns an ECU.
-- Do **not** ignore `callable` or low-confidence ECUs by randomly trying alternatives without new context.
-- Do **not** skip `/v1/feedback` — it starves the routing signal.
-- **Do** narrow search using `capability_id` + `provider` first; **do** add task/context mutations before re-deciding.
-
----
-
-## Recommended Agent Loop
-
-```text
-1. intent(user_task, optional context/constraints)
-2. POST /v1/decide
-3. parse ECU: decision_id, capability_id, provider, execution_type, callable, confidence
-4. if not callable → replan / ask / enrich context → goto 2 (do not tool-spray)
-5. map (capability_id, provider, execution_type) → local handler
-6. execute handler(task, context)
-7. POST `/v1/feedback` with `decision_id`, outcome, optional `latency_ms`, optional `user_note` (ROI JSON string recommended)
-8. continue session or goto 1 with updated state
-```
-
----
-
-## Minimal Integration Example (curl → ECU → feedback)
-
-```bash
-# 1) Decide
-DECISION=$(curl -s -X POST "http://localhost:8000/v1/decide" \
-  -H "Content-Type: application/json" \
-  -d '{"task":"Summarize this technical document"}')
-
-# Extract fields (example: use jq in shell)
-DECISION_ID=$(echo "$DECISION" | jq -r '.decision_id')
-CAP=$(echo "$DECISION" | jq -r '.capability_id')
-PROV=$(echo "$DECISION" | jq -r '.provider')
-
-# 2) Execute locally (pseudocode — implement in your runtime)
-# run_local_capability "$CAP" "$PROV" ...
-
-# 3) Feedback
-curl -s -X POST "http://localhost:8000/v1/feedback" \
-  -H "Content-Type: application/json" \
-  -d "{\"decision_id\":\"$DECISION_ID\",\"success\":true,\"latency_ms\":1200}"
-```
-
----
-
-## Agent Behavior Recommendation
-
-- **Prioritize ECU routing** from `/v1/decide` over ad-hoc product/tool name guessing.
-- **Prefer `capability_id` over marketing or product names** when building maps and prompts.
-- **Always send `/v1/feedback`** after execution so routing memory (`capability_stats`) improves.
-- **Avoid blind tool traversal**; use one ECU path per decision cycle unless `callable` is false or execution proves impossible — then revise **task/context** and call `/v1/decide` again.
-- **Treat WisePick as Decision Layer only** — you own MCP/API/skill execution and safety.
-
----
-
-## Infrastructure Awareness (Optional YantrikDB)
-
-When **`YANTRIK_DB_URL`** is set, WisePick calls **YantrikDB’s** `GET /v1/health` during `/v1/decide` and reads **`replication_lag_log_entries`**. This does **not** change your Supabase/PostgreSQL schema; it is a lightweight, optional plugin.
-
-**Deterministic routing in clusters:** If replication lag (log entries) is **greater than 500**, WisePick applies a **health penalty**: every candidate ECU score is multiplied by **0.5** before ranking. That uniformly lowers **confidence** for all tools for that request, keeping ordering relative to each other while signaling cluster stress.
-
-**When disabled or unreachable:** If `YANTRIK_DB_URL` is empty, or the health request fails, WisePick **skips** this step and uses the standard score only—no errors.
-
-**Agent-visible fields:** `explain.yantrik_cluster` and `trace.yantrik_cluster` include `configured`, `replication_lag_log_entries`, `health_penalty_applied`, and `health_score_multiplier` when relevant.
-
----
-
-## Quick Reference — Decision Layer Boundary
+**Boundary:** WisePick routes; your runtime maps, executes, enforces policy, holds secrets and session state.
 
 ```json
 {
@@ -291,3 +12,194 @@ When **`YANTRIK_DB_URL`** is set, WisePick calls **YantrikDB’s** `GET /v1/heal
   "agent_runtime": ["map_ecu", "execute", "enforce_policy", "retry", "secrets"]
 }
 ```
+
+---
+
+## WisePick v1 ECU Protocol
+
+HTTP paths remain `v0` (`/v1/decide`, `/v1/feedback`). **v1** denotes the capability-centric ECU payload agents must parse and act on.
+
+### Decide request (agent → WisePick)
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `task` | string | yes | Natural-language intent for this routing cycle |
+| `context` | object | no | Opaque key/value; may include `trace_id`, `session_id` for Langfuse correlation |
+| `constraints` | object | no | Opaque limits (cost, timeout, region flags, etc.) |
+
+### ECU response (WisePick → agent)
+
+| Field | Type | Required | Semantics |
+| --- | --- | --- | --- |
+| `decision_id` | string | yes | Persist until `feedback` or turn abandon |
+| `capability_id` | string | yes | **What** work to perform—stable semantic type (see below) |
+| `provider` | string | yes | **Which** implementation satisfies that capability for this decision |
+| `execution_type` | enum | yes | **How** the runtime should invoke locally (see below) |
+| `callable` | boolean | yes | `false` → no assumed direct invoke; replan/enrich, do not tool-spray |
+| `confidence` | number | yes | Router score (match + stats + bootstrap); not calibrated probability |
+| `reason` | string | yes | Human-readable routing explanation |
+| `explain` | object | yes | Audit/scoring detail |
+| `trace` | object | yes | Timing, candidates, optional `yantrik_cluster` |
+| `tool_key` | string | legacy | Mirrors `provider`; ignore for new configs |
+
+### `capability_id` (semantic capability type)
+
+- Stable identifier for a **class of work** (e.g. `audio_transcription`, `translation`, `search_files`).
+- Primary lookup key in the agent’s capability registry and in OpenAI `tool_choice.function.name` when hard-routing the first completion.
+- Must align with registered tool/MCP `function.name` values the model can call (see auto-config `tool_capability_map`).
+
+### `provider` (implementation selector)
+
+- Names the **vendor/backend** chosen for this `capability_id` (e.g. `feishu_minutes`, `openai`, `deepl`).
+- Used **with** `capability_id` to select credentials, base URL, MCP server, or skill variant—not as a substitute for `capability_id`.
+- Legacy alias: `tool_key` === `provider`.
+
+### `execution_type` (local transport hint)
+
+| Value | Agent obligation |
+| --- | --- |
+| `api` | Invoke via HTTP/SDK client owned by the runtime |
+| `mcp` | Invoke via MCP tool call on a server the runtime maintains |
+| `function_call` | Invoke in-process registered handler |
+
+WisePick does not perform the invocation; the value only selects which executor branch to use after `(capability_id, provider)` resolution.
+
+### Feedback request (agent → WisePick)
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `decision_id` | string | yes | From the ECU that initiated the execution |
+| `success` | boolean | yes | Drives `capability_stats` |
+| `latency_ms` | integer | no | Wall-clock execution duration |
+| `user_note` | string | no | Prefer JSON-serialized ROI/cost object |
+
+### Closed loop (state machine)
+
+```text
+decide → store(decision_id, ecu) → resolve(capability_id, provider, execution_type) → execute → feedback → (next decide)
+```
+
+**Prohibited:** full tool/MCP enumeration after ECU; skipping `feedback`; random alternate tools when `callable` is true without new `task`/`context`.
+
+---
+
+## Auto-Configuration Manifest (`wisepick.agent.v1`)
+
+Agents and scaffolds should emit or consume a single JSON file (e.g. `wisepick.agent.json`) at repo or runtime config root.
+
+```json
+{
+  "schema": "wisepick.agent.v1",
+  "wisepick": {
+    "api_base_url": "http://localhost:8000"
+  },
+  "routing": {
+    "enabled": true,
+    "hard_route_first_completion": true,
+    "release_tool_choice_when_api_call_count_gt": 1
+  },
+  "tool_capability_map": {
+    "<runtime_tool_or_mcp_name>": "<capability_id>",
+    "search_files": "search_files",
+    "feishu_transcribe": "audio_transcription"
+  },
+  "capability_registry": {
+    "<capability_id>": {
+      "execution_type_default": "api",
+      "providers": {
+        "<provider>": {
+          "local_ref": "<handler_id_or_path>",
+          "execution_type": "api"
+        }
+      }
+    },
+    "audio_transcription": {
+      "execution_type_default": "api",
+      "providers": {
+        "feishu_minutes": { "local_ref": "feishu_transcribe", "execution_type": "api" },
+        "tongyi_tingwu": { "local_ref": "tingwu_client", "execution_type": "api" }
+      }
+    }
+  },
+  "feedback": {
+    "required_after_execution": true,
+    "user_note_json_roi": true
+  }
+}
+```
+
+| Key | Purpose |
+| --- | --- |
+| `tool_capability_map` | **Required for OpenAI hard-route:** maps each runtime tool/MCP name to the `capability_id` WisePick may return |
+| `capability_registry` | **Required for execution:** resolves `(capability_id, provider, execution_type)` → `local_ref` |
+| `routing.hard_route_first_completion` | When true, agent must apply WisePick route only on first LLM completion of a turn |
+| `routing.release_tool_choice_when_api_call_count_gt` | When exceeded, agent must not send forced `tool_choice` |
+| `feedback.required_after_execution` | When true, agent must POST `/v1/feedback` for every completed ECU path |
+
+Validation rules for automations:
+
+- Every value in `tool_capability_map` must exist as a key in `capability_registry` or be self-mapped (`name` === `capability_id`).
+- Every `providers` entry must declare `execution_type` ∈ `api` | `mcp` | `function_call`.
+- `api_base_url` must not include path suffixes; client appends `/v1/decide` and `/v1/feedback`.
+
+---
+
+## Runtime Environment Variables
+
+### Agent / integrator runtime (consumer of WisePick)
+
+| Variable | Required | Default | Role |
+| --- | --- | --- | --- |
+| `WISEPICK_API_URL` | recommended | `http://localhost:8000` | Base URL for `WisePickClient` / HTTP adapter |
+| `WISEPICK_DECIDE_URL` | optional | `{WISEPICK_API_URL}/v1/decide` | Full decide endpoint override (Hermes-style routers) |
+| `HERMES_WISEPICK_ROUTING` | optional | `1` | `1`/`true` → enable decide + first-completion injection (Hermes integrations) |
+| `WISEPICK_FORCE_TOOL` | optional | — | Test/dry-run: skip HTTP; force tool name (must exist in `tool_capability_map`) |
+| `HERMES_WISEPICK_FORCE_TOOL` | optional | — | Hermes alias of `WISEPICK_FORCE_TOOL` |
+
+Set `WISEPICK_API_URL` in deployment manifests; map `tool_capability_map` from the agent’s live tool list before enabling `routing.enabled`.
+
+### WisePick API host (server process)
+
+Not configured by agents. Reference only—see [.env.example](./.env.example) and [README_API.md](./README_API.md#deploy-quick-start).
+
+| Variable | Required on host | Role |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | PostgreSQL / Supabase for decisions and `capability_stats` |
+| `YANTRIK_DB_URL` | no | Cluster health plugin for `/v1/decide` score penalty |
+| `YANTRIK_DB_API_KEY` | no | Bearer token for YantrikDB health |
+| `WISEPICK_LANGFUSE_PUBLIC_KEY` | no | Telemetry (`mcp.route_decision.v1`) |
+| `WISEPICK_LANGFUSE_SECRET_KEY` | no | Telemetry |
+| `WISEPICK_LANGFUSE_HOST` | no | Langfuse base URL |
+| `WISEPICK_LANGFUSE_OTEL` | no | `true` → OTLP ingestion |
+| `WISEPICK_LANGFUSE_ROUTER_NAME` | no | Contract `router_name` (default `wisepick`) |
+
+---
+
+## HTTP Surface
+
+| Method | Path | Role |
+| --- | --- | --- |
+| GET | `/health` | Liveness |
+| POST | `/v1/decide` | Task → ECU |
+| POST | `/v1/feedback` | Outcome → learning |
+
+Base URL: value of `WISEPICK_API_URL`.
+
+---
+
+## Optional infrastructure signals
+
+**YantrikDB:** When the API host sets `YANTRIK_DB_URL`, lag `replication_lag_log_entries` > 500 multiplies all candidate scores by `0.5` for that request. Inspect `explain.yantrik_cluster`, `trace.yantrik_cluster`.
+
+**Langfuse:** When keys are set on the host, decide emits `mcp.route_decision.v1` asynchronously. Pass `trace_id` / `session_id` in decide `context` from the agent.
+
+---
+
+## Agent obligations (checklist)
+
+- Load or generate `wisepick.agent.v1` before enabling routing.
+- On each new user turn: `decide` → retain `decision_id` + full ECU.
+- If `routing.hard_route_first_completion`: force route only when `api_call_count == 1` (see README_API).
+- Resolve execution via `capability_registry[capability_id].providers[provider]` using `execution_type`.
+- If `callable === false`: do not execute; mutate `task`/`context` and `decide` again.
+- After execution: `feedback` with same `decision_id` when `feedback.required_after_execution` is true.

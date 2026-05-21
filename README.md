@@ -16,7 +16,7 @@
 
 ---
 
-**🚀 WisePick Decision API (WPDA) v0.1.7**
+**🚀 WisePick Decision API (WPDA) v0.1.8**
 
 > WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.  
 > 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。
@@ -46,9 +46,9 @@ Most agents fail from poor capability routing, not weak models.
 
 多数失败来自能力路由失准，而非模型能力不足。
 
-- Blind capability search · 盲目遍历能力
-- Trial-and-error execution · 反复试错执行  
-- No execution feedback loop · 缺少反馈闭环
+* Blind capability search · 盲目遍历能力
+* Trial-and-error execution · 反复试错执行
+* No execution feedback loop · 缺少反馈闭环
 
 WisePick replaces guessing with learned routing.
 
@@ -58,35 +58,40 @@ WisePick replaces guessing with learned routing.
 
 ## 🚀 Quick Start | 快速启动
 
-Configure `DATABASE_URL` in `.env` (see [.env.example](./.env.example)). Full API and ops detail: [README_API.md](./README_API.md).
+> **⚠️ Production Deployment Requirement:** WisePick API is **core infrastructure** for your production product and must be deployed independently in your production environment. Local testing is for logic validation only. When you ship, include the WisePick API Server in your production containerized deployment manifest. Agents without an online API revert to inefficient stochastic routing and lose determinism.
+>
+> **⚠️ 生产部署要求：** WisePick API 是您生产产品的**核心基础设施**，必须在生产环境中独立部署。本地测试仅用于验证逻辑；发布产品时，请务必将 WisePick API Server 纳入您的生产容器化部署清单。未部署在线 API 的 Agent 将回退至低效随机路由，失去确定性。
 
-在 `.env` 中配置 `DATABASE_URL`（参考 [.env.example](./.env.example)）。完整接口与运维说明见 [README_API.md](./README_API.md)。
+### 1. 部署决策服务 (Server)
+Deploy the WisePick API locally. 
+部署本地智选 API 服务。
 
 ```bash
+# 1. Clone & Config
+cp .env.example .env
+# Configure DATABASE_URL in .env
+
+# 2. Start Service
 pip install -r requirements.txt
-```
-
-```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
 ```
 
-Smoke test:
+### 2. 接入 SDK (Integration)
 
-```bash
-curl -s http://localhost:8000/health
-```
+> Check out the [15-Minute Developer Integration Guide](./README_API.md%2315-minute-integration-checklist) for rapid SDK setup, `tool_choice` hard-injection, and full-loop feedback implementation.
+
+> 查看 [15分钟开发者接入指南](./README_API.md%2315-minute-integration-checklist)，获取 SDK 快速接入、`tool_choice` 硬强制注入与反馈闭环全链路实现方案。 
 
 ---
 
 ## ⚡ Why Integrate WisePick | 为什么接入智选
 
-- Lower cost and latency by cutting trial-and-error.
+* Lower cost and latency by cutting trial-and-error.
 更低成本与延迟：减少无效试错与 Token 浪费。
- 
-- Deterministic selection: one best ECU per decision.
+* Deterministic selection: one best ECU per decision.
 确定性输出：每次决策对应单一最优 ECU。
-
-- Self-evolving loop: routing improves from execution feedback.
+* Self-evolving loop: routing improves from execution feedback.
 自进化闭环：执行反馈持续修正路由统计。
 
 ---
@@ -99,70 +104,33 @@ Production-oriented deterministic routing vs. native LLM tool-calling. Tested in
 ### Runtime Efficiency | 运行时效率提升
 
 | Metrics | Native LLM Calling | WisePick Router | Optimization |
-| :--- | :--- | :--- | :--- |
+| --- | --- | --- | --- |
 | **Tool Calls** | Baseline | **~35% fewer** | Avoid redundant & hallucinated calls |
 | **Execution Path** | Baseline | **~27% shorter** | Fast convergence, eliminate infinite loops |
 | **Core Latency** | Variable | **Sub-millisecond** | Non-blocking decision making |
-| **API Token Cost**| High | **Drastically Reduced** | Zero prompt bloat across long sessions |
+| **API Token Cost** | High | **Drastically Reduced** | Zero prompt bloat across long sessions |
 
 ### Key Capabilities | 核心优势
 
-- **Zero-Latency Gatekeeping**: Sub-millisecond average latency under isolated routing-core stress testing. (隔离路由核心压测下平均亚毫秒级延迟)
-- **Anti-Loop Depth**: Stabilizes execution across 20+ mixed-tool tasks without infinite loops. (在 20+ 混合工具任务下稳定运行，彻底消除无限循环路径)
+* **Zero-Latency Gatekeeping**: Sub-millisecond average latency under isolated routing-core stress testing. (隔离路由核心压测下平均亚毫秒级延迟)
+* **Anti-Loop Depth**: Stabilizes execution across 20+ mixed-tool tasks without infinite loops. (在 20+ 混合工具任务下稳定运行，彻底消除无限循环路径)
 
 Benchmark scripts & instrumentation: [BENCHMARK](./benchmark/) | [STRESS_TEST_RESULTS.md](./docs/STRESS_TEST_RESULTS.md)
 
 ---
 
-## 🔌 Integration | 集成接入
+## 🔌 Integration & Router Specification | 集成与路由规范
 
 WisePick acts as a stateless decision layer. You own the execution; we provide the routing.
 
-无状态决策层： 仅负责意图路由，不保存执行状态。
+无状态决策层：仅负责意图路由，不保存执行状态。
 
-    Decide: POST /v1/decide maps intent to ECU.
-    Execute: Run tools in your existing runtime.
-    Feedback: POST /v1/feedback to close the optimization loop.
-    Prerequisite: Self-host the API first ([Deployment Guide](https://github.com/w2jmoe/WisePick/blob/main/README_API.md#quick-start)).
-
-### 3-minute integration | 三分钟接入
-
-Drop-in routing: call WisePick where you used to pick a tool internally (`examples/` on `PYTHONPATH`).
-
-```python
-from wisepick_router import route_task
-
-def wisepick_router(task, tools):
-    return route_task(task, tools)
-
-picked = wisepick_router(user_task, openai_tools)["selected_tool"]
-
-# If picked is None:
-#   fall back to your existing selector
-# Else:
-#   bind tool_choice / dispatch directly
-```
-
-See also:
-
-* [`examples/`](./examples/)
-* [`docs/ADAPTER_PATTERN.md`](./docs/ADAPTER_PATTERN.md)
-
----
-
-## 🤖 Agent Runtime Integration | 运行时集成
-
-Machine-readable contract and runtime loop: [AGENTS.md](./AGENTS.md).
-
-机器可读的集成语义与运行时闭环见 [AGENTS.md](./AGENTS.md)。
-
-### Runtime Adapter Examples
-
-- **Hermes runtime** — [`examples/hermes_adapter.py`](./examples/hermes_adapter.py)
-- **OpenAI `tool_choice` runtime** — [`examples/wisepick_router.py`](./examples/wisepick_router.py) + `openai_tool_choice` / `inject_wisepick_tool_choice` in [`examples/hermes_adapter.py`](./examples/hermes_adapter.py)
-- **Runtime-agnostic orchestration** — [`examples/omnicore_adapter.py`](./examples/omnicore_adapter.py)
-
-Design notes: [`docs/ADAPTER_PATTERN.md`](./docs/ADAPTER_PATTERN.md) · [`examples/`](./examples/)
+* **For Human Builders / 面向人类开发者 ([README_API.md](./README_API.md)):**
+SDK integration, programmatic turn interception, multi-turn lock release, and execution hook feedback closure.
+SDK 代码集成、首轮意图拦截、多轮强制解锁以及执行钩子反馈闭环。
+* **For AI Agents & Automation / 面向智能体与自动配置 ([AGENTS.md](./AGENTS.md)):**
+Machine-readable `wisepick.agent.v1` manifest contract, protocol state machine mapping, and runtime environment declaration.
+机器可读的声明式配置清单契约、协议状态机映射以及运行时环境依赖声明。
 
 ---
 
@@ -202,14 +170,9 @@ Routing updates from real execution outcomes.
 
 ### Components | 核心组件
 
-    Routing Core (decision_engine)
-    将输入任务转换为 ECU（执行单元）评分并进行路由决策。
-
-    Capability Registry (api_tool_specs)
-    管理可用 Provider、能力标签及冷启动权重分配。
-
-    Execution Memory (tool_stats, feedback)
-    存储执行成功率与反馈结果，支持闭环优化。
+* **Routing Core (decision_engine)** Maps text input to ECU scoring matrices and outputs deterministic selections. (将输入任务转换为 ECU 评分并进行路由决策)
+* **Capability Registry (api_tool_specs)** Manages target providers, capability definitions, and cold-start weights. (管理可用 Provider、能力标签及冷启动权重分配)
+* **Execution Memory (tool_stats, feedback)** Tracks real-world error rates and response loops for reinforcement behavior. (存储执行成功率与反馈结果，支持闭环优化)
 
 ### Optional YantrikDB | 可选 YantrikDB
 
@@ -245,7 +208,7 @@ WisePick evolved from `tool selection` → `executable capability routing`.
 
 ```json
 {
-  "decision_id": "xxx",
+  "decision_id": "dec_abc123def4567890",
   "capability_id": "audio_transcription",
   "execution_type": "api",
   "provider": "feishu_minutes",
@@ -275,16 +238,18 @@ Send feedback                   → 回传反馈
 
 WisePick provides decision, routing, and execution learning—not task execution.
 
-智选提供决策、路由与执行侧学习信号；**不替代**任务执行本身。
+智选提供决策、路由与执行侧学习信号；**不替代**任务 execution 本身。
 
 ---
 
 ## 🔮 Vision | 愿景
 
-**Today:** Local execution learning.  
+**Today:** Local execution learning.
+
 **Tomorrow:** Shared decision memory.
 
-**当下：** 本地执行反馈驱动学习。  
+**当下：** 本地执行反馈驱动学习。
+
 **下一步：** 共享决策记忆。
 
 Execution outcomes become portable capability experience—not repeated trial and error.
@@ -295,12 +260,12 @@ Execution outcomes become portable capability experience—not repeated trial an
 
 ## 🗺️ Roadmap | 路线图
 
-- **✅v0.1**: Core Capability Routing · 核心路由层实现
-    Sub-millisecond isolated core latency.
-    ECU protocol & feedback loop logic.
-- **🔄v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
-- **🔄v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
-- **🔄Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
+* **✅v0.1**: Core Capability Routing · 核心路由层实现
+Sub-millisecond isolated core latency.
+ECU protocol & feedback loop logic.
+* **🔄v0.2**: Agentic Workflow Routing · 复杂 Agent 流转路由支持（从单点路由向多步协同演进）
+* **🔄v0.3**: Collective Decision Memory · 集体决策记忆（让真实的执行结果沉淀为可复用的路由经验）
+* **🔄Ongoing**: ECU Ecology · 持续扩展主流 MCP 与 API 能力库，构建最全的可执行能力索引
 
 ---
 
@@ -310,14 +275,12 @@ Share use cases, routing results, or failure reports.
 
 欢迎反馈接入场景、路由结果或失败案例。
 
-- **Issues:** [GitHub Issues](https://github.com/w2jmoe/WisePick/issues)
-- **Email:** [w2jmoe@gmail.com](mailto:w2jmoe@gmail.com)
+* **Issues:** [GitHub Issues](https://github.com/w2jmoe/WisePick/issues)
+* **Email:** [w2jmoe@gmail.com]()
 
-**Every routing decision is observable, feedback-driven, and reproducible.**
-**每一次路由决策可观测、可反馈、可复现。**
+**Every routing decision is observable, feedback-driven, and reproducible.** **每一次路由决策可观测、可反馈、可复现。**
 
-**Every decision sharpens the path to perfect agency.**
-**每一次决策，都在打磨通往完美能动性的路径。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**
+**Every decision sharpens the path to perfect agency.** **每一次决策，都在打磨通往完美能动性的路径。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**
 
 ---
 
