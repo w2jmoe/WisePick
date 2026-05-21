@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.models.tool_spec import ApiToolSpec
 from app.schemas.decide import DecideRequest, DecideResponse
 from app.services.bootstrap_rules import extract_capabilities, BOOTSTRAP_VERSION
+from app.core.database import rollback_session
 from app.core.logger import get_logger
 from app.core.config import settings
 from app.adapters.yantrik_adapter import get_cluster_health, health_score_multiplier
@@ -170,7 +171,8 @@ def _get_feedback_count(db: Session, tool_key: str) -> int:
             return int(result[0])
         return 0
     except Exception as e:
-        print(f"Warning: Failed to get feedback count for tool {tool_key}: {e}")
+        rollback_session(db)
+        logger.warning("Failed to get feedback count for %s: %s", tool_key, e)
         return 0
 
 
@@ -207,7 +209,8 @@ def _get_tool_metrics(db: Session, tool_key: str) -> dict[str, Any]:
             metrics["feedback_count"] = int(result[4])
         return metrics
     except Exception as e:
-        print(f"Warning: Failed to get tool metrics for {tool_key}: {e}")
+        rollback_session(db)
+        logger.warning("Failed to get tool metrics for %s: %s", tool_key, e)
         return metrics
 
 
@@ -509,6 +512,5 @@ def _create_decision_log(db: Session, decision_id: str, request: DecideRequest,
         )
         db.commit()
     except Exception as e:
-        db.rollback()
-        # Log error but don't fail the request
-        print(f"Failed to create decision log: {e}")
+        rollback_session(db)
+        logger.warning("Failed to create decision log: %s", e)

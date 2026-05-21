@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.core.database import get_db
+from app.core.database import get_db, rollback_session
 from app.core.logger import get_logger
 from app.schemas.feedback import FeedbackRequest
 from app.telemetry.langfuse_emitter import emit_execution_feedback_async
@@ -70,6 +70,7 @@ def record_feedback(
         )
         return {"ok": True}
     except Exception as e:
+        rollback_session(db)
         logger.error(f"feedback failed: decision_id={request.decision_id} error={str(e)}")
         return JSONResponse(
             status_code=500,
