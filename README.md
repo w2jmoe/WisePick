@@ -106,12 +106,12 @@ Production-oriented deterministic routing vs. native LLM tool-calling. Tested in
 
 ### Runtime Efficiency | 运行时效率提升
 
-| Metrics | Native LLM Calling | WisePick Router | Optimization |
+| Metrics | Native LLM | WisePick | Optimization |
 | --- | --- | --- | --- |
-| **Execution Convergence** | Baseline | **~31% Faster** | Path shrunk from 6.33 to 4.33 vs previous run |
-| **Session Latency** | Baseline | **~62% Saved** | Total benchmark runtime cut from 12m to 4m30s |
-| **Token Cost Efficiency** | High | **~33% Reduced** | Session token expenses dropped from $0.15 to $0.10 |
-| **First-Tool Alignment** | Experimental | **100% Locked** | Zero hallucinated tool-selection on first turn |
+| **🚀 Path Speed** | Baseline | **~31% Faster** | Shrunk from 6.33 to 4.33 steps |
+| **⏱️ Time Saved** | Baseline | **~62% Saved** | Benchmark cut from 12m to 4m30s |
+| **💵 Cost Cut** | High | **~33% Reduced** | $0.15 → $0.10 per session |
+| **🎯 First-Hit Rate** | Exp. | **100% Locked** | Zero hallucinated tool-selection |
 
 ### Key Capabilities | 核心优势
 
@@ -154,9 +154,14 @@ task → capabilities
 
 ```text
 score =
-capability_match       * 0.70  (语义匹配度)
-execution_success_rate * 0.20  (历史成功率)
-bootstrap_weight       * 0.10  (初始权重 / 冷启动偏好)
+capability_match       * 0.40  (语义匹配度 - 核心逻辑)
+execution_success_rate * 0.20  (历史可靠性)
+efficiency_factor      * 0.20  (执行效率 - 基于 avg_latency_ms)
+economy_factor         * 0.10  (成本性价比 - 基于 avg_token_cost)
+bootstrap_weight       * 0.10  (初始冷启动权重)
+
+*Note: Latency and Cost are normalized against the current capability cohort.*
+*注：延迟（Latency）和成本（Cost）数据均已针对当前候选能力组进行了归一化处理。*
 
 ```
 
@@ -165,17 +170,23 @@ bootstrap_weight       * 0.10  (初始权重 / 冷启动偏好)
 ```text
 decision → execution → feedback → capability_stats → next decision
 
-```
-
 Routing updates from real execution outcomes.
-
 路由统计随真实执行结果更新。
+
+```
 
 ### Components | 核心组件
 
-* **Routing Core (decision_engine)** Maps text input to ECU scoring matrices and outputs deterministic selections. (将输入任务转换为 ECU 评分并进行路由决策)
-* **Capability Registry (api_tool_specs)** Manages target providers, capability definitions, and cold-start weights. (管理可用 Provider、能力标签及冷启动权重分配)
-* **Execution Memory (tool_stats, feedback)** Tracks real-world error rates and response loops for reinforcement behavior. (存储执行成功率与反馈结果，支持闭环优化)
+```text
+Routing Core (decision_engine)
+将输入任务转换为 ECU（执行单元）评分并进行路由决策。
+
+Capability Registry (api_tool_specs)
+管理可用 Provider、能力标签及冷启动权重分配。
+
+Execution Memory (tool_stats, feedback)
+存储执行成功率与反馈结果，支持闭环优化。
+```
 
 ### Optional YantrikDB | 可选 YantrikDB
 
@@ -197,7 +208,7 @@ Optional integration via `WISEPICK_LANGFUSE_PUBLIC_KEY` and `SECRET_KEY`: export
 
 ## 🦜 Semantic Upgrade | 语义升级
 
-WisePick evolved from `tool selection` → `executable capability routing`.
+WisePick evolved from `tool selection` → `capability routing`.
 
 演进路径：从「选工具」到「可执行能力路由」。
 
@@ -205,43 +216,42 @@ WisePick evolved from `tool selection` → `executable capability routing`.
 | --- | --- |
 | `tool_key` | `capability_id` + `provider` |
 | Tool-centric | Capability-centric |
-| Tool selection | Capability routing |
+| Static selection | ROI-driven routing |
 
-## 🔬 Example ECU Response | ECU 响应示例
+## 🔬 ECU Response (with ROI Metrics) | 带有 ROI 指标的 ECU 响应
 
 ```json
 {
   "decision_id": "dec_abc123def4567890",
   "capability_id": "audio_transcription",
-  "execution_type": "api",
   "provider": "feishu_minutes",
-  "tool_key": "feishu_minutes",
   "confidence": 0.87,
-  "callable": true
+  "metrics": {
+    "predicted_latency_ms": 450,
+    "cost_score": 0.12,
+    "quality_baseline": 0.95
+  }
 }
 
 ```
 
-Program against capabilities, not product names.
-
-对「能力」编程，不对「产品名」编程。
-
----
+*WisePick predicts performance before execution to ensure the best ROI.*
 
 ## 🧪 Agent Workflow | Agent 工作流
 
-```text
-Ask WisePick for routing        → 请求路由
-Receive ECU                     → 获取 ECU
-Map ECU → local API / MCP       → 映射到本地实现
-Execute                         → 执行
-Send feedback                   → 回传反馈
+```mermaid
+graph LR
+    A[Ask Routing] --> B(Receive ECU)
+    B --> C{Map to Local Implementation}
+    C --> D[Execute]
+    D --> E[Send Feedback]
+    E -.->|Updates ROI Models| A
 
 ```
 
-WisePick provides decision, routing, and execution learning—not task execution.
+WisePick provides decision intelligence and feedback loops—not task execution.
 
-智选提供决策、路由与执行侧学习信号；**不替代**任务 execution 本身。
+智选提供决策智能与反馈闭环；**不替代**任务执行本身。
 
 ---
 

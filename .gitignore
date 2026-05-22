@@ -77,3 +77,6 @@ temp/
 # Temporary local tests
 tests/temporary_*.py
 tests/stress_test.py
+
+# Migrations
+migrations/

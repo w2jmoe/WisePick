@@ -60,26 +60,40 @@ def build_route_decision_payload(request: DecideRequest, response: DecideRespons
     ctx = request.context if isinstance(request.context, dict) else None
     trace_id = _extract_id(ctx, _CONTEXT_TRACE_KEYS)
     session_id = _extract_id(ctx, _CONTEXT_SESSION_KEYS)
-    payload: dict[str, Any] = {
-        "metadata": {"schema_version": SCHEMA_VERSION},
+    
+    # 核心修改：将所有分析字段平铺压入顶层 metadata 内部
+    sanitized_args = _sanitize_arguments(response)
+    meta_payload = {
+        "schema_version": SCHEMA_VERSION,
         "decision_id": response.decision_id,
         "router_name": router_name,
         "capability_id": response.capability_id,
         "provider": response.provider,
         "execution_type": response.execution_type,
         "callable": bool(response.callable),
-        "arguments": _sanitize_arguments(response),
+        "confidence": sanitized_args.get("confidence"),
+        "latency_ms": sanitized_args.get("latency_ms", 0),
+        "candidate_count": sanitized_args.get("candidate_count", 0),
+    }
+    
+    if session_id:
+        meta_payload["session_id"] = session_id
+
+    payload: dict[str, Any] = {
+        "metadata": meta_payload,
+        "output": {
+            "selected_tool": response.provider, # 降级兼容显示
+            "capability_id": response.capability_id,
+            "callable": bool(response.callable)
+        },
+        "decision_id": response.decision_id,
     }
     if trace_id: payload["trace_id"] = trace_id
-    if session_id: payload["session_id"] = session_id
     return payload
 
 def _auth_header(public_key: str, secret_key: str) -> str:
     token = base64.b64encode(f"{public_key}:{secret_key}".encode("utf-8")).decode("ascii")
     return f"Basic {token}"
-
-def _hex_id(byte_len: int = 16) -> str:
-    return secrets.token_hex(byte_len)
 
 class LangfuseEmitter:
     def __init__(self, public_key: str = "", secret_key: str = "", host: str = "", *, use_otel: bool = False, router_name: str = ROUTER_NAME_DEFAULT, timeout_seconds: float = 5.0) -> None:
@@ -139,7 +153,7 @@ class LangfuseEmitter:
                         "startTime": ts,
                         "endTime": ts,
                         "metadata": contract.get("metadata"),
-                        "output": contract,
+                        "output": contract.get("output"),
                     },
                 },
             ]
@@ -165,7 +179,7 @@ class LangfuseEmitter:
                         "startTime": ts,
                         "endTime": ts,
                         "metadata": contract.get("metadata"),
-                        "output": contract,
+                        "output": contract.get("output"),
                     },
                 },
             ]
@@ -184,7 +198,6 @@ def emit_route_decision_async(request: DecideRequest, response: DecideResponse, 
     if not emitter.enabled: return
     _executor.submit(emitter.emit_route_decision, request, response, router_name=router_name)
 
-
 def build_execution_feedback_payload(
     *,
     decision_id: str,
@@ -195,7 +208,6 @@ def build_execution_feedback_payload(
     result_quality: float | None = None,
     decision_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build mcp.execution_feedback.v1 contract for Langfuse (linked to decide trace)."""
     ctx = decision_context if isinstance(decision_context, dict) else {}
     trace_id = _extract_id(ctx, _CONTEXT_TRACE_KEYS) or decision_id
     session_id = _extract_id(ctx, _CONTEXT_SESSION_KEYS)
@@ -209,17 +221,24 @@ def build_execution_feedback_payload(
         args["token_cost"] = token_cost
     if result_quality is not None:
         args["result_quality"] = float(result_quality)
+        
+    meta_payload = {
+        "schema_version": EXECUTION_FEEDBACK_SCHEMA,
+        "decision_id": decision_id,
+        "success": bool(success),
+        "tool_key": tool_key,
+    }
+    if session_id:
+        meta_payload["session_id"] = session_id
+
     payload: dict[str, Any] = {
-        "metadata": {"schema_version": EXECUTION_FEEDBACK_SCHEMA},
+        "metadata": meta_payload,
         "decision_id": decision_id,
         "parent_span_id": route_span_id,
-        "arguments": args,
+        "output": args,
     }
     payload["trace_id"] = trace_id
-    if session_id:
-        payload["session_id"] = session_id
     return payload
-
 
 def emit_execution_feedback_async(
     *,
@@ -231,7 +250,6 @@ def emit_execution_feedback_async(
     result_quality: float | None = None,
     decision_context: dict[str, Any] | None = None,
 ) -> None:
-    """Emit execution feedback span on the same Langfuse trace as the prior decide."""
     emitter = get_langfuse_emitter()
     if not emitter.enabled:
         return
