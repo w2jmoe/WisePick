@@ -28,15 +28,13 @@
 
 ## 🛡️ Decision Infrastructure | 决策基础设施
 
-From intent → one executable capability unit (ECU).
+> **Arch Positioning:** WisePick is independent of the tool discovery layer. Whether your agent uses static hard-coding, dynamic marketplaces, or MCP, WisePick operates purely as the unified ECU decision plane—accepting natural intent and outputting the optimal execution path.
 
-输入意图 → 单一可执行能力单元（ECU）。
+> **架构定位:** 智选完全独立于工具发现层。无论 Agent 是通过静态硬编码、动态插件市场还是 MCP 协议发现能力，智选均作为统一的 ECU 决策面，负责输入意图并输出最优执行路径。
 
 ```text
 Executable Capability Unit (ECU)
-
 A standardized executable capability an agent can route, invoke, and learn from.
-
 可执行能力单元（ECU）：可被路由、调用并通过反馈学习的标准化能力抽象。
 
 ```
@@ -222,20 +220,41 @@ WisePick evolved from `tool selection` → `capability routing`.
 
 ```json
 {
-  "decision_id": "dec_abc123def4567890",
-  "capability_id": "audio_transcription",
-  "provider": "feishu_minutes",
-  "confidence": 0.87,
-  "metrics": {
-    "predicted_latency_ms": 450,
-    "cost_score": 0.12,
-    "quality_baseline": 0.95
+  "metadata": {
+    "schema_version": "mcp.route_decision.v1",
+    "decision_id": "dec_abc123def4567890",
+    "trace_id": "trace_9876543210abcdef",
+    "router_name": "wisepick",
+    "capability_id": "audio_transcription",
+    "provider": "feishu_minutes",
+    "execution_type": "api",
+    "callable": true,
+    "confidence": 0.87,
+    "latency_ms": 450,
+    "candidate_count": 1,
+    "top_candidates": [
+      {
+        "rank": 1,
+        "tool_key": "audio_transcription",
+        "capability_id": "audio_transcription",
+        "score": 0.87,
+        "selected": true
+      }
+    ],
+    "reason_codes": ["capability_match"]
+  },
+  "output": {
+    "selected_tool": "audio_transcription",
+    "capability_id": "audio_transcription",
+    "callable": true
   }
 }
 
 ```
 
 *WisePick predicts performance before execution to ensure the best ROI.*
+
+*WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。*
 
 ## 🧪 Agent Workflow | Agent 工作流
 

@@ -78,6 +78,9 @@ ecu = wp.decide(user_task)
 | `audio_transcription` | `audio_transcription` | `transcribe_audio(provider, …)` |
 | `search_files` | `search_files` | MCP tool `search_files` |
 
+Note that this protocol alignment holds true regardless of how tools are gathered. WisePick decouples routing from discovery; your runtime can load tools statically or query an MCP server dynamically, but it must map those discovered payloads to stable `capability_id` strings before hitting the decision layer.
+请注意，无论工具是如何加载的，此协议对齐均有效。智选将路由与发现解耦：您的运行时可以静态加载工具，也可以动态查询 MCP 服务，但在进入决策层之前，必须将这些发现的能力映射为稳定的 `capability_id` 字符串。
+
 **Rule:** Register tools under **`capability_id` strings** WisePick emits. Use `provider` + `execution_type` inside your executor to pick credentials, endpoint, or MCP server—not as the forced function name.
 
 ```python

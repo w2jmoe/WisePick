@@ -4,7 +4,7 @@
 
 **Implementation (client, hooks, `tool_choice`, deploy):** [README_API.md](./README_API.md) only. This file is the machine-readable contract and auto-config schema—not source-level integration steps.
 
-**Boundary:** WisePick routes; your runtime maps, executes, enforces policy, holds secrets and session state.
+**Boundary:** WisePick routes and scores; your runtime discovers, maps, executes, enforces policy, holds secrets and session state. WisePick remains agnostic to whether tools are registered via static manifests or dynamic MCP hosts.
 
 ```json
 {
