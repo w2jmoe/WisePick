@@ -69,6 +69,8 @@ Deploy the WisePick API locally.
 
 ```bash
 # 1. Clone & Config
+git clone https://github.com/w2jmoe/WisePick.git
+cd WisePick
 cp .env.example .env
 # Configure DATABASE_URL in .env
 
@@ -235,7 +237,6 @@ WisePick evolved from `tool selection` → `capability routing`.
     "top_candidates": [
       {
         "rank": 1,
-        "tool_key": "audio_transcription",
         "capability_id": "audio_transcription",
         "score": 0.87,
         "selected": true
@@ -244,7 +245,6 @@ WisePick evolved from `tool selection` → `capability routing`.
     "reason_codes": ["capability_match"]
   },
   "output": {
-    "selected_tool": "audio_transcription",
     "capability_id": "audio_transcription",
     "callable": true
   }
