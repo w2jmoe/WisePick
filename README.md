@@ -26,6 +26,19 @@
 
 ---
 
+## 📘 Contents | 目录
+
+- [🚀 Quick Start](#-quick-start--快速启动) 　　　　　　　　 |　　　快速启动
+- [⚡ Why Integrate WisePick](#-why-integrate-wisepick--为什么接入智选) 　 　 |　　　为什么接入智选
+- [📜 Performance Benchmarks](#-performance--cost-benchmarks--性能与成本报告)　　|　　　性能与成本报告
+- [🔌 Integration Specification](#-integration--router-specification--集成与路由规范) 　 　 |　　　集成与路由规范
+- [🧠 How It Works](#-how-it-works--工作原理) 　　　　　　　 |　　　工作原理
+- [🏗️ Architectural Paradigm](#%EF%B8%8F-architectural-paradigm--架构范式演进) 　　　 |　　　架构范式演进
+- [🧪 Agent Workflow](#-agent-workflow--agent-工作流) 　 　　　　　|　　　Agent 工作流
+- [🗺️ Roadmap](#%EF%B8%8F-roadmap--路线图) 　　　　　　　　　|　　　路线图
+
+---
+
 ## 🛡️ Decision Infrastructure | 决策基础设施
 
 > **Arch Positioning:** WisePick is independent of the tool discovery layer. Whether your agent uses static hard-coding, dynamic marketplaces, or MCP, WisePick operates purely as the unified ECU decision plane—accepting natural intent and outputting the optimal execution path.
@@ -206,17 +219,15 @@ Optional integration via `WISEPICK_LANGFUSE_PUBLIC_KEY` and `SECRET_KEY`: export
 
 ---
 
-## 🦜 Semantic Upgrade | 语义升级
+## 🏗️ Architectural Paradigm | 架构范式演进
 
-WisePick evolved from `tool selection` → `capability routing`.
+WisePick unifies both hard-coded and dynamic tool discovery under a deterministic routing layer.
+智选将硬编码与动态发现路线统一于确定性路由层，解决向动态模式（如 MCP）转型中的工具焦虑。
 
-演进路径：从「选工具」到「可执行能力路由」。
-
-| Legacy · 传统 | New · 智选 |
-| --- | --- |
-| `tool_key` | `capability_id` + `provider` |
-| Tool-centric | Capability-centric |
-| Static selection | ROI-driven routing |
+| Paradigm | Discovery| Runtime Pain | WisePick Value |
+| --- | --- | --- | --- |
+| **Static** | Manual config | Brittle scaling, zero runtime flexibility | Centralized ECU registry, cleaner code |
+| **Dynamic** | Auto-discovery | **Tool Anxiety:** Context explosion, loops, hallucinations | **Deterministic Filter:** Cuts 95% noise, 100% lock |
 
 ## 🔬 ECU Response (with ROI Metrics) | 带有 ROI 指标的 ECU 响应
 
@@ -252,9 +263,9 @@ WisePick evolved from `tool selection` → `capability routing`.
 
 ```
 
-*WisePick predicts performance before execution to ensure the best ROI.*
+WisePick predicts performance before execution to ensure the best ROI.
 
-*WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。*
+WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。
 
 ## 🧪 Agent Workflow | Agent 工作流
 
@@ -291,16 +302,20 @@ Execution outcomes become portable capability experience—not repeated trial an
 ---
 
 ## 🗺️ Roadmap | 路线图
-
+ 
 * **✅v0.1**: Core Infrastructure · 核心路由与反馈闭环
-  - Deterministic ECU routing & Feedback loop.
-  - Multi-dimensional ROI metrics aggregation (Latency/Cost/Quality).
-* **🔄v0.2**: Dynamic ROI Optimization · 动态效能优化
-  - Scoring engine upgrade: Efficacy-based tool selection.
-  - Automatic fallback strategy based on real-time tool performance.
+  - Deterministic ECU routing & feedback loop.
+  - Multi-dimensional ROI metrics aggregation (Latency / Cost / Quality).
+
+* **🔄v0.2**: Runtime-Aware Optimization · Runtime 感知执行优化
+  - Task-level capability routing for multi-agent runtimes.
+  - Adaptive execution-path optimization based on latency / cost / quality feedback.
+  - Lightweight integration adapters for orchestration frameworks.
+
 * **🔄v0.3**: Collective Decision Memory · 集体决策记忆
   - Cross-agent experience sharing.
   - Global capability indexing & optimization.
+
 ---
 
 ## 🤗 Feedback & Integration | 反馈与集成
@@ -321,3 +336,5 @@ Share use cases, routing results, or failure reports.
 ## 🌸 License | 许可协议
 
 Apache License 2.0 — see [LICENSE](./LICENSE).
+
+<img style="max-width: 100%; width: 500px;" alt="WisePick✨️" src="https://github.com/user-attachments/assets/fb3af8b7-eb36-425d-a266-0cced12cb592" />

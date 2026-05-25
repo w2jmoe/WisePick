@@ -52,6 +52,7 @@ class WisePickClient:
         success: bool,
         latency_ms: int,
         *,
+        user_note: str | None = None,
         error_message: str | None = None,
         token_usage: dict | None = None,
         result_quality: float | None = None,
@@ -67,8 +68,9 @@ class WisePickClient:
             "success": success,
             "latency_ms": latency_ms,
         }
-        if error_message:
-            body["user_note"] = error_message
+        note = user_note if user_note is not None else error_message
+        if note:
+            body["user_note"] = note
         if token_usage:
             tc = {k: token_usage[k] for k in ("input", "output") if k in token_usage}
             if tc:
