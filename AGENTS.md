@@ -207,3 +207,13 @@ Base URL: value of `WISEPICK_API_URL`.
 - Resolve execution via `capability_registry[capability_id].providers[provider]` using `execution_type`.
 - If `callable === false`: do not execute; mutate `task`/`context` and `decide` again.
 - After execution: `feedback` with same `decision_id` when `feedback.required_after_execution` is true.
+
+---
+
+## Durable Execution Integration (e.g., Aetheris)
+
+WisePick supports durable runtimes by treating routing decisions as immutable **Runtime Evidence**.
+
+* **Mechanism**: Use the `AetherisRoutingAdvisor` (see `adapters/aetheris_adapter.py`) to map WisePick responses into audit-ready JSON bundles.
+* **Replay Semantics**: Store the `decision_id`, `score`, and `reason_codes` in your execution log. During replay, skip WisePick calls and reuse the stored evidence to ensure deterministic path execution.
+* **Failure Mode**: The adapter emits `["fallback_routing"]` for unreachable or low-confidence states, enabling graceful runtime degradation.

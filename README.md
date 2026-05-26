@@ -16,7 +16,7 @@
 
 ---
 
-**🚀 WisePick Decision API (WPDA) v0.1.9**
+**🚀 WisePick Decision API (WPDA) v0.2.0**
 
 * WisePick does not recommend apps to humans. It routes executable capabilities to agents at 0.0s latency.
 * 智选不向人类推荐应用；它为 Agent 提供 0.0s 延迟的确定性决策路由。
@@ -147,7 +147,7 @@ SDK 代码集成、首轮意图拦截、多轮强制解锁以及执行钩子反�
 * **For AI Agents & Automation / 面向智能体与自动配置 ([AGENTS.md](./AGENTS.md)):**
 Machine-readable `wisepick.agent.v1` manifest contract, protocol state machine mapping, and runtime environment declaration.
 机器可读的声明式配置清单契约、协议状态机映射以及运行时环境依赖声明。
-
+* **Aetheris** (Experimental): Durable AI Agent Runtime integration. WisePick acts as the deterministic RoutingAdvisor by emitting audit-ready decision_id, score, and reason_codes. This allows runtimes to replay execution paths without re-invoking the router.
 ---
 
 ## 🧠 How It Works | 工作原理

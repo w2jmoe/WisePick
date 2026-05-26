@@ -3,6 +3,8 @@ WisePick → ChainWeaver adapter.
 
 Routing: POST /v1/decide (ECU). Execution: FlowExecutor.execute_flow. Feedback: POST /v1/feedback.
 Explicit capability → (flow_id, flow_version) mapping only — no implicit fallback.
+
+Aligned with ChainWeaver's ExecutionResult specs (trace_id, total_duration_ms, cost_report).
 """
 
 from __future__ import annotations
@@ -41,7 +43,7 @@ class FlowRouteMapping:
     """Explicit registry entry: capability_id → ChainWeaver flow identity."""
 
     flow_id: str
-    flow_version: str
+    flow_version: str  # Documented as audit/intent metadata rather than guaranteed targeting.
 
 
 @dataclass(frozen=True)
@@ -170,6 +172,7 @@ class WisePickChainWeaverAdapter:
             self._send_feedback(trace, started, success=False, execution_meta={})
             return self._pack(trace, None)
 
+        # NOTE: flow_version is preserved as advisory audit metadata inside initial_input
         initial_input: Dict[str, Any] = {
             "task": user_request,
             "capability_id": capability_id,
@@ -203,7 +206,7 @@ class WisePickChainWeaverAdapter:
         if not trace.decision_id:
             return {}
         note = self._build_feedback_user_note(trace, execution_meta)
-        cost = execution_meta.get("cost")
+        cost = execution_meta.get("cost_report")
         token_usage = cost if isinstance(cost, dict) else None
         return self._wp.feedback(
             trace.decision_id,
@@ -237,21 +240,23 @@ class WisePickChainWeaverAdapter:
         contract: WeaverRouterContract,
         started: float,
     ) -> Dict[str, Any]:
-        """Flat execution trace for feedback and observability (Langfuse-style scalars + log list)."""
-        log = execution.get("log")
-        if log is None:
-            log = execution.get("execution_log") or []
-        duration_ms = execution.get("duration_ms")
-        if duration_ms is None:
-            duration_ms = execution.get("duration")
-        if duration_ms is None:
-            duration_ms = WisePickChainWeaverAdapter._elapsed_ms(started)
+        """Flat execution trace fully aligned with ChainWeaver's ExecutionResult shape."""
+        # Aligned to ChainWeaver's real field: total_duration_ms
+        total_duration_ms = execution.get("total_duration_ms")
+        if total_duration_ms is None:
+            total_duration_ms = execution.get("duration_ms") or execution.get("duration")
+        if total_duration_ms is None:
+            total_duration_ms = WisePickChainWeaverAdapter._elapsed_ms(started)
 
+        # Aligned to ChainWeaver's core fields (trace_id, execution_log, cost_report, times)
         meta: Dict[str, Any] = {
             "trace_id": str(execution.get("trace_id") or uuid.uuid4().hex),
-            "duration_ms": int(duration_ms),
-            "cost": execution.get("cost") if execution.get("cost") is not None else {},
-            "log": log if isinstance(log, list) else [],
+            "total_duration_ms": int(total_duration_ms),
+            "cost_report": execution.get("cost_report") if execution.get("cost_report") is not None else execution.get("cost", {}),
+            "execution_log": execution.get("execution_log") if isinstance(execution.get("execution_log"), list) else execution.get("log", []),
+            "started_at": execution.get("started_at"),
+            "ended_at": execution.get("ended_at"),
+            "initial_input": execution.get("initial_input", {}),
             "flow_id": contract.flow_id,
             "flow_version": contract.flow_version,
             "success": bool(execution.get("success")),
@@ -264,81 +269,17 @@ class WisePickChainWeaverAdapter:
 
     @staticmethod
     def _normalize_execution(result: Any) -> Dict[str, Any]:
-        if hasattr(result, "flow_name"):
+        """Normalizes Pydantic models or objects into a standardized dict."""
+        if hasattr(result, "flow_name") or hasattr(result, "success"):
+            # Normalize logs accurately favoring 'execution_log'
             log = getattr(result, "execution_log", None) or getattr(result, "log", None) or []
             out: Dict[str, Any] = {
-                "flow_name": result.flow_name,
-                "success": bool(result.success),
+                "flow_name": getattr(result, "flow_name", ""),
+                "success": bool(getattr(result, "success", False)),
                 "final_output": getattr(result, "final_output", None),
-                "log": [
+                "execution_log": [
                     asdict(r) if hasattr(r, "__dataclass_fields__") else r for r in log
                 ],
             }
-            for attr in ("trace_id", "duration_ms", "duration", "cost"):
-                if hasattr(result, attr):
-                    val = getattr(result, attr)
-                    if val is not None:
-                        out[attr] = val
-            return out
-        if isinstance(result, dict):
-            normalized = dict(result)
-            if "log" not in normalized and "execution_log" in normalized:
-                normalized["log"] = normalized["execution_log"]
-            return normalized
-        return {"success": False, "final_output": None, "log": [], "raw": repr(result)}
-
-    @staticmethod
-    def _pack(trace: WeaverExecutionTrace, execution: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        return {
-            "contract": asdict(trace.contract),
-            "execution": execution,
-            "trace": {
-                "decision_id": trace.decision_id,
-                "capability_id": trace.capability_id,
-                "provider": trace.provider,
-                "callable": trace.callable,
-                "ecu": trace.ecu,
-                "chainweaver": trace.chainweaver,
-                "feedback": trace.feedback,
-                "error": trace.error,
-            },
-        }
-
-
-# --- Test / demo stubs --------------------------------------------------------
-
-
-@dataclass
-class StubExecutionResult:
-    flow_name: str
-    success: bool
-    final_output: Optional[Dict[str, Any]]
-    execution_log: List[Any]
-    trace_id: str
-    duration_ms: int
-    cost: Dict[str, Any]
-
-
-class StubFlowRegistry:
-    def __init__(self, flow_names: set[str]) -> None:
-        self._names = flow_names
-
-    def get_flow(self, flow_name: str) -> str:
-        if flow_name not in self._names:
-            raise KeyError(flow_name)
-        return flow_name
-
-
-class StubFlowExecutor:
-    """Implements FlowExecutorLike for unit tests and local demos."""
-
-    def execute_flow(self, flow_name: str, initial_input: Dict[str, Any]) -> StubExecutionResult:
-        return StubExecutionResult(
-            flow_name=flow_name,
-            success=True,
-            final_output={"task": initial_input.get("task"), "flow_version": initial_input.get("flow_version")},
-            execution_log=[{"step": "done", "tool": "echo"}],
-            trace_id=uuid.uuid4().hex,
-            duration_ms=12,
-            cost={"input": 10, "output": 5},
-        )
+            # Safely grab metadata fields aligning with ChainWeaver contracts
+            for attr in ("trace_id", "total_duration_ms", "duration_ms", "cost
