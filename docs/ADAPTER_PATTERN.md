@@ -23,4 +23,5 @@ WisePick does not prescribe tool schemas, MCP layouts, or planner graphs. It emi
 ## Reference material
 
 - Narrative contract: [AGENTS.md](../AGENTS.md)
-- Copy-paste sketches: [examples/](../examples/) — [wisepick_router.py](../examples/wisepick_router.py), [omnicore_adapter.py](../examples/omnicore_adapter.py), [chainweaver_adapter.py](../examples/chainweaver_adapter.py) — guide: [CHAINWEAVER_ADAPTER.md](../examples/CHAINWEAVER_ADAPTER.md)
+- Copy-paste sketches: [examples/](../examples/) — [wisepick_router.py](../examples/wisepick_router.py), [omnicore_adapter.py](../examples/omnicore_adapter.py)
+- ChainWeaver: [adapters/chainweaver_adapter.py](../adapters/chainweaver_adapter.py) — guide: [chainweaver_adapter_readme.md](../adapters/chainweaver_adapter_readme.md)

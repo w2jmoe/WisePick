@@ -281,5 +281,96 @@ class WisePickChainWeaverAdapter:
                     asdict(r) if hasattr(r, "__dataclass_fields__") else r for r in log
                 ],
             }
-            # Safely grab metadata fields aligning with ChainWeaver contracts
-            for attr in ("trace_id", "total_duration_ms", "duration_ms", "cost
+            for attr in (
+                "trace_id",
+                "total_duration_ms",
+                "duration_ms",
+                "cost_report",
+                "cost",
+                "started_at",
+                "ended_at",
+                "initial_input",
+            ):
+                if hasattr(result, attr):
+                    val = getattr(result, attr)
+                    if val is not None:
+                        out[attr] = val
+            out["log"] = out.get("execution_log", [])
+            return out
+        if isinstance(result, dict):
+            normalized = dict(result)
+            if "execution_log" not in normalized and "log" in normalized:
+                normalized["execution_log"] = normalized["log"]
+            elif "log" not in normalized and "execution_log" in normalized:
+                normalized["log"] = normalized["execution_log"]
+            return normalized
+        return {
+            "success": False,
+            "final_output": None,
+            "execution_log": [],
+            "log": [],
+        }
+
+    @staticmethod
+    def _pack(trace: WeaverExecutionTrace, execution: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        return {
+            "contract": asdict(trace.contract),
+            "execution": execution,
+            "trace": {
+                "decision_id": trace.decision_id,
+                "capability_id": trace.capability_id,
+                "provider": trace.provider,
+                "callable": trace.callable,
+                "ecu": trace.ecu,
+                "chainweaver": trace.chainweaver,
+                "feedback": trace.feedback,
+                "error": trace.error,
+            },
+        }
+
+
+# --- Test / demo stubs --------------------------------------------------------
+
+
+@dataclass
+class StubExecutionResult:
+    flow_name: str
+    success: bool
+    final_output: Optional[Dict[str, Any]]
+    execution_log: List[Any]
+    trace_id: str
+    total_duration_ms: int
+    duration_ms: int
+    cost_report: Dict[str, Any]
+    started_at: str
+    ended_at: str
+    initial_input: Dict[str, Any]
+
+
+class StubFlowRegistry:
+    def __init__(self, flow_names: set[str]) -> None:
+        self._names = flow_names
+
+    def get_flow(self, flow_name: str) -> str:
+        if flow_name not in self._names:
+            raise KeyError(flow_name)
+        return flow_name
+
+
+class StubFlowExecutor:
+    """Implements FlowExecutorLike for unit tests and local demos."""
+
+    def execute_flow(self, flow_name: str, initial_input: Dict[str, Any]) -> StubExecutionResult:
+        return StubExecutionResult(
+            flow_name=flow_name,
+            success=True,
+            final_output={"task": initial_input.get("task")},
+            execution_log=[{"step": "done", "tool": "echo"}],
+            trace_id=uuid.uuid4().hex,
+            total_duration_ms=42,
+            duration_ms=42,
+            cost_report={"input": 10, "output": 5, "usd": 0.01},
+            started_at="2025-01-01T00:00:00Z",
+            ended_at="2025-01-01T00:00:00.042Z",
+            initial_input=dict(initial_input),
+        )

@@ -10,8 +10,9 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from examples.chainweaver_adapter import (  # noqa: E402
+from adapters.chainweaver_adapter import (  # noqa: E402
     FlowRouteMapping,
+    StubExecutionResult,
     StubFlowExecutor,
     StubFlowRegistry,
     UnmappedCapabilityError,
@@ -41,9 +42,33 @@ def test_flow_executor_stub_satisfies_execute_flow_contract():
     assert result.flow_name == "demo_flow"
     assert result.success is True
     assert result.trace_id
-    assert result.duration_ms >= 0
-    assert "input" in result.cost
+    assert result.total_duration_ms == 42
+    assert result.duration_ms == 42
+    assert "input" in result.cost_report
     assert isinstance(result.execution_log, list)
+
+
+def test_normalize_execution_includes_total_duration_ms_and_cost_report():
+    raw = StubExecutionResult(
+        flow_name="demo_flow",
+        success=True,
+        final_output={"ok": True},
+        execution_log=[{"step": 1}],
+        trace_id="trace-xyz",
+        total_duration_ms=99,
+        duration_ms=99,
+        cost_report={"input": 3, "output": 7},
+        started_at="t0",
+        ended_at="t1",
+        initial_input={"task": "x"},
+    )
+    normalized = WisePickChainWeaverAdapter._normalize_execution(raw)
+    assert normalized["total_duration_ms"] == 99
+    assert normalized["cost_report"] == {"input": 3, "output": 7}
+    assert normalized["trace_id"] == "trace-xyz"
+    assert normalized["started_at"] == "t0"
+    assert normalized["ended_at"] == "t1"
+    assert normalized["initial_input"] == {"task": "x"}
 
 
 def test_explicit_mapping_required():
@@ -106,11 +131,16 @@ def test_select_and_execute_maps_contract_and_feedback_trace():
     }
     assert WeaverRouterContract(**contract).flow_version == "2.1.0"
 
+    execution = out["execution"]
+    assert execution is not None
+    assert execution["total_duration_ms"] == 42
+    assert execution["cost_report"] == {"input": 10, "output": 5, "usd": 0.01}
+
     cw = out["trace"]["chainweaver"]
     assert cw["trace_id"]
-    assert cw["duration_ms"] == 12
-    assert cw["cost"] == {"input": 10, "output": 5}
-    assert len(cw["log"]) == 1
+    assert cw["total_duration_ms"] == 42
+    assert cw["cost_report"] == {"input": 10, "output": 5, "usd": 0.01}
+    assert len(cw["execution_log"]) == 1
 
     fb = wp.feedback_calls[0]
     assert fb["success"] is True

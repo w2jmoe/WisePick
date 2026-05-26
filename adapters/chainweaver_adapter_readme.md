@@ -24,8 +24,8 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)/chainweaver-wisepick-adapter
 | Layer | Responsibility |
 | --- | --- |
 | **WisePick** | Turns natural-language intent into one ECU: `capability_id`, `provider`, `confidence`, `decision_id`. Learns from `/v1/feedback`. |
-| **ChainWeaver** | Runs a **registered, versioned** flow deterministically—no LLM inside the executor. |
-| **This adapter** | Maps ECU → `(flow_id, flow_version)`, calls `execute_flow`, then posts structured feedback so the next route benefits from real execution cost and logs. |
+| **ChainWeaver** | Runs a **registered** flow deterministically via `flow_id`—no LLM inside the executor. |
+| **This adapter** | Maps ECU → `flow_id` (+ advisory `flow_version`), calls `execute_flow`, then posts structured feedback so the next route benefits from real execution cost and logs. |
 
 Without the adapter, teams re-implement the same glue: decide → guess flow name → execute → forget to feedback. Here that loop is one call: `select_and_execute`.
 
@@ -84,19 +84,21 @@ There is **no** fallback `capability_id → same-named flow`. Every capability W
 ```python
 capability_to_flow = {
     "audio_transcription": FlowRouteMapping(
-        flow_id="transcribe_v2",        # FlowRegistry name
-        flow_version="2.1.0",           # pinned version string for audit
+        flow_id="transcribe_v2",        # FlowRegistry name — sole execution target
+        flow_version="2.1.0",           # advisory audit metadata only (see below)
     ),
 }
 
 ```
 
+**`flow_version` is advisory audit metadata, not an execution selector.** ChainWeaver resolves flows by `flow_id` via `FlowRegistry.get_flow` / `execute_flow(flow_id, …)`. The version string is copied into `WeaverRouterContract`, `initial_input`, and feedback JSON for rollout tracking and observability—it does **not** switch runtime behavior unless your own ChainWeaver layer chooses to read it.
+
 ---
 
 ## Contract & Trace
 
-* `WeaverRouterContract`: Passed from `decide` to `execute_flow` (contains `flow_version`).
-* Feedback: Sends `/v1/feedback` with JSON note `mcp.chainweaver_execution.v1` containing full ChainWeaver trace (IDs, cost, log).
+* `WeaverRouterContract`: `flow_id` (execution target), `flow_version` (audit-only), `confidence`, `reasoning`.
+* Feedback: Sends `/v1/feedback` with JSON note `mcp.chainweaver_execution.v1` containing ChainWeaver trace fields (`trace_id`, `total_duration_ms`, `cost_report`, `execution_log`, etc.).
 
 ---
 
