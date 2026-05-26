@@ -212,7 +212,7 @@ Base URL: value of `WISEPICK_API_URL`.
 
 ## Runtime Adapters
 
-* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
+* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](https://github.com/w2jmoe/chainweaver-wisepick-adapter/blob/main/adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
 
 ---
 
