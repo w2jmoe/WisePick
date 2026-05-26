@@ -1,0 +1,33 @@
+name: ChainWeaver Adapter
+
+on:
+  push:
+    paths:
+      - "adapters/chainweaver_adapter.py"
+      - "tests/test_chainweaver.py"
+      - ".github/workflows/chainweaver_adapter_test.yml"
+  pull_request:
+    paths:
+      - "adapters/chainweaver_adapter.py"
+      - "tests/test_chainweaver.py"
+      - ".github/workflows/chainweaver_adapter_test.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install wisepick from repository root
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pytest>=8.0.0
+
+      - name: Run ChainWeaver adapter tests
+        run: python -m pytest tests/test_chainweaver_smoke.py tests/test_chainweaver_adapter.py -v

@@ -6,6 +6,8 @@
 
 **Boundary:** WisePick routes and scores; your runtime discovers, maps, executes, enforces policy, holds secrets and session state. WisePick remains agnostic to whether tools are registered via static manifests or dynamic MCP hosts.
 
+**ChainWeaver:** Refer to [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py) for the community-maintained integration pattern.
+
 ```json
 {
   "wise_pick": ["route", "explain", "persist_decision_id", "learn_from_feedback"],
@@ -212,7 +214,7 @@ Base URL: value of `WISEPICK_API_URL`.
 
 ## Runtime Adapters
 
-* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](https://github.com/w2jmoe/chainweaver-wisepick-adapter/blob/main/adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
+* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
 
 ---
 

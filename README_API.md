@@ -210,7 +210,7 @@ See [.env.example](./.env.example).
 
 We provide a native adapter for ChainWeaver that maps ECU decisions directly to FlowExecutor calls. It strictly adheres to the decision-execution separation, ensuring that WisePick only handles the routing logic, while ChainWeaver handles the deterministic execution.
 
-Reference: [`adapters/chainweaver_adapter.py`](https://github.com/w2jmoe/chainweaver-wisepick-adapter/blob/main/adapters/chainweaver_adapter.py) · [`adapters/chainweaver_adapter_readme.md`](./adapters/chainweaver_adapter_readme.md)
+Reference: [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py) · [`adapters/chainweaver_adapter_readme.md`](./adapters/chainweaver_adapter_readme.md)
 
 ---
 
@@ -222,4 +222,4 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Further adapters:** [examples/](./examples/) · [adapters/chainweaver_adapter.py](https://github.com/w2jmoe/chainweaver-wisepick-adapter/blob/main/adapters/chainweaver_adapter.py) · [docs/ADAPTER_PATTERN.md](./docs/ADAPTER_PATTERN.md)
+**Further adapters:** [examples/](./examples/) · [adapters/chainweaver_adapter.py](./adapters/chainweaver_adapter.py) · [docs/ADAPTER_PATTERN.md](./docs/ADAPTER_PATTERN.md)

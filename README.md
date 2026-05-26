@@ -135,6 +135,14 @@ Benchmark scripts & instrumentation: [BENCHMARK](./benchmark/) | [STRESS_TEST_RE
 
 ---
 
+## Integrations | 集成适配
+
+Runtime bridges under [`adapters/`](./adapters/) connect WisePick’s decision plane to external executors:
+
+- **ChainWeaver** — [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py): `ChainWeaverAdapter`, `RoutingDecision`, and `select_and_execute` (WisePick route → `FlowExecutor.execute_flow` → feedback).
+
+---
+
 ## 🔌 Integration & Router Specification | 集成与路由规范
 
 WisePick acts as a stateless decision layer. You own the execution; we provide the routing.
@@ -149,8 +157,7 @@ Machine-readable `wisepick.agent.v1` manifest contract, protocol state machine m
 机器可读的声明式配置清单契约、协议状态机映射以及运行时环境依赖声明。
 * **Aetheris (Experimental) / 持久化运行时适配 ([aetheris_adapter.py](./adapters/aetheris_adapter.py)):**
 Durable AI Agent Runtime integration. WisePick acts as the deterministic RoutingAdvisor by emitting audit-ready decision_id, score, and reason_codes. This allows runtimes to replay execution paths without re-invoking the router.
-* **ChainWeaver (Production Runtime) / 确定性运行时适配 ([chainweaver_adapter.py](https://github.com/w2jmoe/chainweaver-wisepick-adapter/blob/main/adapters/chainweaver_adapter.py)):**
-Integration with ChainWeaver FlowExecutor. Separates decision-plane routing from deterministic flow execution.
+* **ChainWeaver:** See [Integrations](#integrations--集成适配) above.
 
 ---
 
