@@ -147,7 +147,11 @@ SDK 代码集成、首轮意图拦截、多轮强制解锁以及执行钩子反�
 * **For AI Agents & Automation / 面向智能体与自动配置 ([AGENTS.md](./AGENTS.md)):**
 Machine-readable `wisepick.agent.v1` manifest contract, protocol state machine mapping, and runtime environment declaration.
 机器可读的声明式配置清单契约、协议状态机映射以及运行时环境依赖声明。
-* **Aetheris** (Experimental): Durable AI Agent Runtime integration. WisePick acts as the deterministic RoutingAdvisor by emitting audit-ready decision_id, score, and reason_codes. This allows runtimes to replay execution paths without re-invoking the router.
+* **Aetheris (Experimental) / 持久化运行时适配 ([aetheris_adapter.py](./adapters/aetheris_adapter.py)):**
+Durable AI Agent Runtime integration. WisePick acts as the deterministic RoutingAdvisor by emitting audit-ready decision_id, score, and reason_codes. This allows runtimes to replay execution paths without re-invoking the router.
+* **ChainWeaver (Production Runtime) / 确定性运行时适配 ([chainweaver_adapter.py](./adapters/chainweaver_adapter.py)):**
+Integration with ChainWeaver FlowExecutor. Separates decision-plane routing from deterministic flow execution.
+
 ---
 
 ## 🧠 How It Works | 工作原理

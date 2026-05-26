@@ -210,6 +210,12 @@ Base URL: value of `WISEPICK_API_URL`.
 
 ---
 
+## Runtime Adapters
+
+* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
+
+---
+
 ## Durable Execution Integration (e.g., Aetheris)
 
 WisePick supports durable runtimes by treating routing decisions as immutable **Runtime Evidence**.
