@@ -26,12 +26,19 @@ if str(_ROOT) not in sys.path:
 
 from wisepick import WisePickClient  # noqa: E402
 
-SAFEAGENT_REQUEST_ID_VERSION = 1
+SAFEAGENT_REQUEST_ID_VERSION = 2
 SAFEAGENT_TRACE_SCHEMA = "mcp.safeagent_execution.v1"
 
 
 def _normalize_task(text: str) -> str:
     return " ".join((text or "").split())
+
+
+def _resolve_start_time_ms(start_time: float | None) -> float:
+    """Epoch milliseconds for turn anchor; orchestrator-supplied for distributed idempotency."""
+    if start_time is None:
+        return time.time() * 1000.0
+    return float(start_time)
 
 
 def wisepick_to_safeagent_request_id(
@@ -41,19 +48,21 @@ def wisepick_to_safeagent_request_id(
     task: str,
     capability_id: str,
     provider: str,
+    start_time_ms: float,
     constraints: Mapping[str, Any] | None = None,
 ) -> str:
     """
     Deterministic SafeAgent request_id (idempotency key) from stable routing intent.
 
     Preimage: canonical JSON (sorted keys) → SHA-256 → versioned 16-byte UUID string.
-    Excludes WisePick `decision_id` and timestamps so replays with a new decide still
-    target the same SafeAgent execution slot when session/turn/task/capability match.
+    Includes orchestrator `start_time_ms` (epoch ms) so retries across nodes share the same
+    request_id when session/turn/task/capability align. Excludes WisePick `decision_id`.
     """
     preimage_obj: dict[str, Any] = {
         "schema_version": SAFEAGENT_REQUEST_ID_VERSION,
         "session_id": (session_id or "").strip(),
         "turn_id": str(turn_id),
+        "start_time_ms": int(start_time_ms),
         "task": _normalize_task(task),
         "capability_id": (capability_id or "").strip(),
         "provider": (provider or "").strip(),
@@ -129,8 +138,10 @@ class SafeAgentAdapter:
         session_id: str,
         turn_id: str | int,
         constraints: Mapping[str, Any] | None = None,
+        start_time: float | None = None,
     ) -> Dict[str, Any]:
         """Map WisePick ECU JSON to SafeAgent invoke payload (contract alignment)."""
+        start_time_ms = _resolve_start_time_ms(start_time)
         capability_id = str(ecu.get("capability_id") or "").strip()
         provider = str(ecu.get("provider") or ecu.get("tool_key") or "").strip()
         request_id = wisepick_to_safeagent_request_id(
@@ -139,11 +150,13 @@ class SafeAgentAdapter:
             task=task,
             capability_id=capability_id,
             provider=provider,
+            start_time_ms=start_time_ms,
             constraints=constraints,
         )
         return {
             "schema_version": SAFEAGENT_TRACE_SCHEMA,
             "request_id": request_id,
+            "startTime_ms": int(start_time_ms),
             "decision_id": str(ecu.get("decision_id") or ""),
             "capability_id": capability_id,
             "provider": provider,
@@ -162,6 +175,7 @@ class SafeAgentAdapter:
         turn_id: str | int,
         context: Optional[Dict[str, Any]] = None,
         constraints: Optional[Dict[str, Any]] = None,
+        start_time: float | None = None,
     ) -> SafeAgentRoutingDecision:
         """Resolve intent via WisePick only (no SafeAgent execution)."""
         ecu = self._wp.decide(user_request)
@@ -171,6 +185,7 @@ class SafeAgentAdapter:
             session_id=session_id,
             turn_id=turn_id,
             constraints=constraints,
+            start_time=start_time,
         )
         return SafeAgentRoutingDecision(
             request_id=dispatch["request_id"],
@@ -191,8 +206,9 @@ class SafeAgentAdapter:
         turn_id: str | int,
         context: Optional[Dict[str, Any]] = None,
         constraints: Optional[Dict[str, Any]] = None,
+        start_time: float | None = None,
     ) -> Dict[str, Any]:
-        started = time.perf_counter()
+        start_time_ms = _resolve_start_time_ms(start_time)
         ecu = self._wp.decide(user_request)
         dispatch = self.ecu_to_dispatch_request(
             ecu,
@@ -200,6 +216,7 @@ class SafeAgentAdapter:
             session_id=session_id,
             turn_id=turn_id,
             constraints=constraints,
+            start_time=start_time_ms,
         )
         request_id = dispatch["request_id"]
         decision_id = dispatch["decision_id"]
@@ -222,7 +239,7 @@ class SafeAgentAdapter:
 
         if not callable_out:
             trace.error = "ECU callable=false"
-            self._send_feedback(trace, started, success=False, execution_meta={})
+            self._send_feedback(trace, start_time_ms, success=False, execution_meta={})
             return self._pack(trace, None)
 
         if context:
@@ -231,11 +248,11 @@ class SafeAgentAdapter:
         result = self._runtime.execute(dispatch)
         execution = self._normalize_execution(result)
         trace.execution = execution
-        exec_meta = self._extract_safeagent_metadata(execution, request_id, started)
+        exec_meta = self._extract_safeagent_metadata(execution, request_id, start_time_ms)
         trace.safeagent = exec_meta
 
         ok = bool(execution.get("success"))
-        fb = self._send_feedback(trace, started, success=ok, execution_meta=exec_meta)
+        fb = self._send_feedback(trace, start_time_ms, success=ok, execution_meta=exec_meta)
         trace.feedback = fb
 
         return self._pack(trace, execution)
@@ -243,7 +260,7 @@ class SafeAgentAdapter:
     def _send_feedback(
         self,
         trace: SafeAgentExecutionTrace,
-        started: float,
+        start_time_ms: float,
         *,
         success: bool,
         execution_meta: Dict[str, Any],
@@ -254,7 +271,7 @@ class SafeAgentAdapter:
         return self._wp.feedback(
             trace.decision_id,
             success=success,
-            latency_ms=self._elapsed_ms(started),
+            latency_ms=self._elapsed_ms_since_start(start_time_ms),
             user_note=note,
             result_quality=1.0 if success else 0.0,
         )
@@ -279,15 +296,16 @@ class SafeAgentAdapter:
     def _extract_safeagent_metadata(
         execution: Dict[str, Any],
         request_id: str,
-        started: float,
+        start_time_ms: float,
     ) -> Dict[str, Any]:
         duration_ms = execution.get("duration_ms")
         if duration_ms is None:
             duration_ms = execution.get("total_duration_ms")
         if duration_ms is None:
-            duration_ms = SafeAgentAdapter._elapsed_ms(started)
+            duration_ms = SafeAgentAdapter._elapsed_ms_since_start(start_time_ms)
         return {
             "request_id": request_id,
+            "startTime_ms": int(start_time_ms),
             "trace_id": str(execution.get("trace_id") or uuid.uuid4().hex),
             "duration_ms": int(duration_ms),
             "success": bool(execution.get("success")),
@@ -295,8 +313,9 @@ class SafeAgentAdapter:
         }
 
     @staticmethod
-    def _elapsed_ms(started: float) -> int:
-        return max(1, int((time.perf_counter() - started) * 1000))
+    def _elapsed_ms_since_start(start_time_ms: float, end_time_ms: float | None = None) -> int:
+        end = float(end_time_ms) if end_time_ms is not None else time.time() * 1000.0
+        return max(1, int(end - float(start_time_ms)))
 
     @staticmethod
     def _normalize_execution(result: Any) -> Dict[str, Any]:
@@ -368,6 +387,7 @@ __all__ = [
     "SafeAgentRoutingDecision",
     "SafeAgentRuntimeLike",
     "StubSafeAgentRuntime",
+    "_resolve_start_time_ms",
     "wisepick_to_safeagent_request_id",
     "SAFEAGENT_TRACE_SCHEMA",
 ]
