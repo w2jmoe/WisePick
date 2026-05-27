@@ -1,12 +1,14 @@
 # AGENTS.md — WisePick Agent Automation Spec
 
+> **Docs:** [Overview](./README.md) | [Integration & SDK](./README_API.md) | [Agent Protocol](./AGENTS.md)
+
 **Audience:** Coding agents, runtime configurators, CI generators (Cursor, Cline, Devin, OpenHands, etc.).
 
-**Implementation (client, hooks, `tool_choice`, deploy):** [README_API.md](./README_API.md) only. This file is the machine-readable contract and auto-config schema—not source-level integration steps.
+**How to implement (SDK, env, adapters, deploy):** [README_API.md](./README_API.md) only.
+
+**Product overview:** [README.md](./README.md).
 
 **Boundary:** WisePick routes and scores; your runtime discovers, maps, executes, enforces policy, holds secrets and session state. WisePick remains agnostic to whether tools are registered via static manifests or dynamic MCP hosts.
-
-**ChainWeaver:** Refer to [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py) for the community-maintained integration pattern.
 
 ```json
 {
@@ -26,7 +28,7 @@ HTTP paths remain `v0` (`/v1/decide`, `/v1/feedback`). **v1** denotes the capabi
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `task` | string | yes | Natural-language intent for this routing cycle |
-| `context` | object | no | Opaque key/value; may include `trace_id`, `session_id` for Langfuse correlation |
+| `context` | object | no | Opaque key/value; may include `trace_id`, `session_id` for observability correlation |
 | `constraints` | object | no | Opaque limits (cost, timeout, region flags, etc.) |
 
 ### ECU response (WisePick → agent)
@@ -84,6 +86,45 @@ decide → store(decision_id, ecu) → resolve(capability_id, provider, executio
 ```
 
 **Prohibited:** full tool/MCP enumeration after ECU; skipping `feedback`; random alternate tools when `callable` is true without new `task`/`context`.
+
+---
+
+## Observability contract (`mcp.route_decision.v1`)
+
+When the API host enables Langfuse (see [README_API.md](./README_API.md#optional-plugins)), decide emits this schema asynchronously. Agents may also log compatible bundles for audit.
+
+```json
+{
+  "metadata": {
+    "schema_version": "mcp.route_decision.v1",
+    "decision_id": "dec_abc123def4567890",
+    "trace_id": "trace_9876543210abcdef",
+    "router_name": "wisepick",
+    "capability_id": "audio_transcription",
+    "provider": "feishu_minutes",
+    "execution_type": "api",
+    "callable": true,
+    "confidence": 0.87,
+    "latency_ms": 450,
+    "candidate_count": 1,
+    "top_candidates": [
+      {
+        "rank": 1,
+        "capability_id": "audio_transcription",
+        "score": 0.87,
+        "selected": true
+      }
+    ],
+    "reason_codes": ["capability_match"]
+  },
+  "output": {
+    "capability_id": "audio_transcription",
+    "callable": true
+  }
+}
+```
+
+Execution outcomes may emit `mcp.execution_feedback.v1` child spans when feedback is recorded. Correlation: pass `trace_id` / `session_id` in decide `context`.
 
 ---
 
@@ -150,78 +191,74 @@ Validation rules for automations:
 
 ---
 
-## Runtime Environment Variables
-
-### Agent / integrator runtime (consumer of WisePick)
-
-| Variable | Required | Default | Role |
-| --- | --- | --- | --- |
-| `WISEPICK_API_URL` | recommended | `http://localhost:8000` | Base URL for `WisePickClient` / HTTP adapter |
-| `WISEPICK_DECIDE_URL` | optional | `{WISEPICK_API_URL}/v1/decide` | Full decide endpoint override (Hermes-style routers) |
-| `HERMES_WISEPICK_ROUTING` | optional | `1` | `1`/`true` → enable decide + first-completion injection (Hermes integrations) |
-| `WISEPICK_FORCE_TOOL` | optional | — | Test/dry-run: skip HTTP; force tool name (must exist in `tool_capability_map`) |
-| `HERMES_WISEPICK_FORCE_TOOL` | optional | — | Hermes alias of `WISEPICK_FORCE_TOOL` |
-
-Set `WISEPICK_API_URL` in deployment manifests; map `tool_capability_map` from the agent’s live tool list before enabling `routing.enabled`.
-
-### WisePick API host (server process)
-
-Not configured by agents. Reference only—see [.env.example](./.env.example) and [README_API.md](./README_API.md#deploy-quick-start).
-
-| Variable | Required on host | Role |
-| --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL / Supabase for decisions and `capability_stats` |
-| `YANTRIK_DB_URL` | no | Cluster health plugin for `/v1/decide` score penalty |
-| `YANTRIK_DB_API_KEY` | no | Bearer token for YantrikDB health |
-| `WISEPICK_LANGFUSE_PUBLIC_KEY` | no | Telemetry (`mcp.route_decision.v1`) |
-| `WISEPICK_LANGFUSE_SECRET_KEY` | no | Telemetry |
-| `WISEPICK_LANGFUSE_HOST` | no | Langfuse base URL |
-| `WISEPICK_LANGFUSE_OTEL` | no | `true` → OTLP ingestion |
-| `WISEPICK_LANGFUSE_ROUTER_NAME` | no | Contract `router_name` (default `wisepick`) |
-
----
-
-## HTTP Surface
-
-| Method | Path | Role |
-| --- | --- | --- |
-| GET | `/health` | Liveness |
-| POST | `/v1/decide` | Task → ECU |
-| POST | `/v1/feedback` | Outcome → learning |
-
-Base URL: value of `WISEPICK_API_URL`.
-
----
-
-## Optional infrastructure signals
-
-**YantrikDB:** When the API host sets `YANTRIK_DB_URL`, lag `replication_lag_log_entries` > 500 multiplies all candidate scores by `0.5` for that request. Inspect `explain.yantrik_cluster`, `trace.yantrik_cluster`.
-
-**Langfuse:** When keys are set on the host, decide emits `mcp.route_decision.v1` asynchronously. Pass `trace_id` / `session_id` in decide `context` from the agent.
-
----
-
 ## Agent obligations (checklist)
 
 - Load or generate `wisepick.agent.v1` before enabling routing.
 - On each new user turn: `decide` → retain `decision_id` + full ECU.
-- If `routing.hard_route_first_completion`: force route only when `api_call_count == 1` (see README_API).
+- If `routing.hard_route_first_completion`: force route only when `api_call_count == 1` (see [README_API.md](./README_API.md#step-4--multi-turn-release-after-the-first-completion)).
 - Resolve execution via `capability_registry[capability_id].providers[provider]` using `execution_type`.
 - If `callable === false`: do not execute; mutate `task`/`context` and `decide` again.
 - After execution: `feedback` with same `decision_id` when `feedback.required_after_execution` is true.
 
 ---
 
-## Runtime Adapters
+## Replay, fork, and idempotency
 
-* **ChainWeaver** — **Deterministic Execution Runtime**. [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py): `/v1/decide` → explicit `capability_id` → `FlowExecutor.execute_flow`; `/v1/feedback` closes the ROI loop. WisePick owns routing; ChainWeaver owns flow execution.
+### `decision_id` (learning anchor)
+
+- One `decision_id` per successful `/v1/decide` for a routing cycle.
+- **Must** be sent on `/v1/feedback` for that execution so `capability_stats` updates.
+- **Do not** reuse one `decision_id` across unrelated executions.
+- On **replan** (new `task`/`context`), call `/v1/decide` again and store the new `decision_id`.
+
+### Fork (multi-branch turns)
+
+- Each branch that makes independent routing choices needs its own `decide` + `decision_id`.
+- Forked workers must not share feedback for a parent `decision_id` unless they executed that exact routed ECU.
+
+### Idempotency (execution plane)
+
+WisePick is stateless on the API side; **your runtime** owns idempotent execution keys.
+
+| Runtime profile | Idempotency key | Rules |
+| --- | --- | --- |
+| **SafeAgent** | `request_id` from `wisepick_to_safeagent_request_id` | Derived from `session_id`, `turn_id`, `start_time_ms`, normalized `task`, `capability_id`, `provider`, `constraints`. **Excludes** WisePick `decision_id` so a fresh decide with the same intent reuses the same SafeAgent slot. Orchestrator must pass stable `start_time_ms` across retries. |
+| **ChainWeaver** | Flow run identity (runtime-owned) | WisePick maps `capability_id` → `(flow_id, flow_version)`; ChainWeaver owns flow instance deduplication. |
+| **Generic** | Your workflow/run ID | Bind `decision_id` to audit logs; use a separate idempotency key for side-effecting work. |
+
+### Durable execution replay semantics
+
+For durable runtimes (e.g. Aetheris):
+
+- **Record** at route time: `decision_id`, `confidence` (score), `reason_codes`, `capability_id`, `provider`, and ranked candidates when present.
+- **Replay:** Rehydrate execution from stored evidence; **do not** call `/v1/decide` again for the same replayed step unless intent or constraints changed.
+- **Degradation:** When evidence indicates fallback (`reason_codes` includes `fallback_routing`) or `callable` was false, replay must not assume a direct invoke path.
+- **Feedback on replay:** Send `/v1/feedback` only when a **new** execution attempt completes under a **new** `decision_id`; do not double-count outcomes for historical decisions.
+
+Adapter wiring (modules, types): [README_API.md](./README_API.md#runtime-adapters).
 
 ---
 
-## Durable Execution Integration (e.g., Aetheris)
+## Recommended agent loop
 
-WisePick supports durable runtimes by treating routing decisions as immutable **Runtime Evidence**.
+```text
+1. intent(user_task, optional context/constraints)
+2. POST /v1/decide
+3. parse ECU: decision_id, capability_id, provider, execution_type, callable, confidence
+4. if not callable → replan / ask / enrich context → goto 2 (do not tool-spray)
+5. map (capability_id, provider, execution_type) → local handler
+6. execute handler(task, context) with runtime idempotency key
+7. POST /v1/feedback with decision_id, outcome, latency_ms, optional token_cost / result_quality
+8. continue session or goto 1 with updated state
+```
 
-* **Mechanism**: Use the `AetherisRoutingAdvisor` (see `adapters/aetheris_adapter.py`) to map WisePick responses into audit-ready JSON bundles.
-* **Replay Semantics**: Store the `decision_id`, `score`, and `reason_codes` in your execution log. During replay, skip WisePick calls and reuse the stored evidence to ensure deterministic path execution.
-* **Failure Mode**: The adapter emits `["fallback_routing"]` for unreachable or low-confidence states, enabling graceful runtime degradation.
+---
+
+## Infrastructure signals (read-only)
+
+When the API host enables optional plugins, agents may read:
+
+- `explain.yantrik_cluster` / `trace.yantrik_cluster` — cluster lag penalty applied (scores × 0.5).
+- Langfuse-correlated `trace_id` / `session_id` echoed from decide `context`.
+
+Configuration: [README_API.md](./README_API.md#optional-plugins).
