@@ -127,7 +127,9 @@ Production-oriented deterministic routing vs. native LLM tool-calling. Tested in
 * **Zero-Latency Gatekeeping**: Sub-millisecond average latency under isolated routing-core stress testing.
 （隔离路由核心压测下平均亚毫秒级延迟）
 * **Anti-Loop Depth**: Stabilizes execution across 20+ mixed-tool tasks without infinite loops.
-（在 20+ 混合工具任务下稳定运行，彻底消除无限循环路径）
+  （在 20+ 混合工具任务下稳定运行，彻底消除无限循环路径）
+
+Benchmark scripts & instrumentation: [BENCHMARK](./benchmark/) | [STRESS_TEST_RESULTS.md](./docs/STRESS_TEST_RESULTS.md)
 
 ---
 
@@ -189,6 +191,7 @@ Execution Memory (tool_stats, feedback)
 ## 🏗️ Architectural Paradigm | 架构范式演进
 
 WisePick unifies both hard-coded and dynamic tool discovery under a deterministic routing layer.
+
 智选将硬编码与动态发现路线统一于确定性路由层。
 
 | Paradigm | Discovery | Runtime Pain | WisePick Value |
@@ -226,8 +229,12 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 
 ```
 
----
+WisePick predicts performance before execution to ensure the best ROI.
 
+WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。
+
+---
+　
 ## 🧪 Agent Workflow | Agent 工作流
 
 ```mermaid
