@@ -164,7 +164,25 @@ bootstrap_weight       * 0.10  (初始冷启动权重)
 
 ### Feedback Loop | 反馈闭环
 
-`decision → execution → feedback → capability_stats → next decision`
+```text
+decision → execution → feedback → capability_stats → next decision
+
+Routing updates from real execution outcomes.
+路由统计随真实执行结果更新。
+```
+
+### Components | 核心组件
+
+```text
+Routing Core (decision_engine)
+将输入任务转换为 ECU（执行单元）评分并进行路由决策。
+
+Capability Registry (api_tool_specs)
+管理可用 Provider、能力标签及冷启动权重分配。
+
+Execution Memory (tool_stats, feedback)
+存储执行成功率与反馈结果，支持闭环优化。
+```
 
 ---
 
@@ -223,6 +241,7 @@ graph LR
 ```
 
 WisePick provides decision intelligence and feedback loops—not task execution.
+
 智选提供决策智能与反馈闭环；**不替代**任务执行本身。
 
 ---
