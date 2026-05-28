@@ -38,6 +38,7 @@ WisePick turns execution outcomes into reusable ECU feedback, so agents can choo
 > ECU (Executable Capability Unit)
 > 
 > A standardized executable capability an agent can route, invoke, and learn from.
+> 
 > 可执行能力单元：可被路由、调用并通过反馈学习的标准化能力抽象。
 
 ## 🌐 Ecosystem Alignment | 生态兼容
@@ -52,14 +53,16 @@ WisePick turns execution outcomes into reusable ECU feedback, so agents can choo
 
 ## 📘 Contents | 目录
 
-- [🚀 Quick Start](#-quick-start--快速启动) 　　　　　　　　 |　　　快速启动
-- [⚡ Why Integrate WisePick](#-why-integrate-wisepick--为什么接入智选) 　 　 |　　　为什么接入智选
-- [📜 Performance Benchmarks](#-performance--cost-benchmarks--性能与成本报告)　　|　　　性能与成本报告
-- [🔌 Integration Specification](#-integration--router-specification--集成与路由规范) 　 　 |　　　集成与路由规范
-- [🧠 How It Works](#-how-it-works--工作原理) 　　　　　　　 |　　　工作原理
-- [🏗️ Architectural Paradigm](#%EF%B8%8F-architectural-paradigm--架构范式演进) 　　　 |　　　架构范式演进
-- [🧪 Agent Workflow](#-agent-workflow--agent-工作流) 　 　　　　　|　　　Agent 工作流
-- [🗺️ Roadmap](#%EF%B8%8F-roadmap--路线图) 　　　　　　　　　|　　　路线图
+| Core Sections | 核心章节 |
+| :--- | :--- |
+| [🚀 Quick Start](#-quick-start--快速启动) | 快速启动 |
+| [⚡ Why Integrate WisePick](#-why-integrate-wisepick--为什么接入智选) | 为什么接入智选 |
+| [📜 Performance Benchmarks](#-performance--cost-benchmarks--性能与成本报告) | 性能与成本报告 |
+| [🔌 Integration Specification](#-integration--router-specification--集成与路由规范) | 集成与路由规范 |
+| [🧠 How It Works](#-how-it-works--工作原理) | 工作原理 |
+| [🏗️ Architectural Paradigm](#%EF%B8%8F-architectural-paradigm--架构范式演进) | 架构范式演进 |
+| [🧪 Agent Workflow](#-agent-workflow--agent-工作流) | Agent 工作流 |
+| [🗺️ Roadmap](#%EF%B8%8F-roadmap--路线图) | 路线图 |
 
 ---
 
@@ -234,7 +237,7 @@ WisePick predicts performance before execution to ensure the best ROI.
 WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。
 
 ---
-　
+
 ## 🧪 Agent Workflow | Agent 工作流
 
 ```mermaid
@@ -288,6 +291,7 @@ WisePick turns execution outcomes into reusable routing experience.
 * **Email:** [w2jmoe@gmail.com]()
 
 **Every routing decision becomes reusable collective intelligence.**
+
 **每一次路由决策，都会沉淀为可复用的集体智能。˗ˋˏ( ´͈ ᗜ `͈ )ˎˊ˗**
 
 ---
