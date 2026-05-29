@@ -5,7 +5,6 @@ Models structured routing evidence before governed execution. Does not invoke
 tools, run THYMOS, or own orchestration/retries.
 
 Run from repo root:
-
   python examples/thymos_routing_advisor_demo.py
 """
 
@@ -286,7 +285,7 @@ def build_thymos_proposal_input(
     artifact: ThymosRoutingArtifact,
     constraints: Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    """Example THYMOS proposal-stage payload (governance checks not yet run)."""
+    """Example THYMOS proposal-stage payload (governance checks stripped, owned by compiler)."""
     return {
         "schema": THYMOS_PROPOSAL_SCHEMA,
         "stage": "proposal",
@@ -303,11 +302,6 @@ def build_thymos_proposal_input(
             "cost_estimate_usd": round(artifact.cost_estimate_usd, 4),
             "fallback_policy": asdict(artifact.fallback_policy),
         },
-        "governance_checks_pending": [
-            "budget_ceiling",
-            "data_classification",
-            "provider_allowlist",
-        ],
         "execution_deferred": True,
         "notes": "WisePick recommends paths; THYMOS owns approval, retries, and invoke topology.",
     }
