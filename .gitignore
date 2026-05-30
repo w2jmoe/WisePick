@@ -80,3 +80,7 @@ tests/stress_test.py
 
 # Migrations
 migrations/
+
+# examples
+wisepick_contrast_flowchart.py
+wisepick_contrast_flowchart.png

@@ -10,6 +10,8 @@
 
 **Boundary:** WisePick routes and scores; your runtime discovers, maps, executes, enforces policy, holds secrets and session state. WisePick remains agnostic to whether tools are registered via static manifests or dynamic MCP hosts.
 
+**Product (today):** WisePick Decision API (WPDA) — deterministic capability routing and execution feedback via SDK/HTTP ([README_API.md](./README_API.md)). **Vision (future):** Execution Experience Network and collective decision memory across runtimes ([README.md](./README.md#-vision--愿景)).
+
 ```json
 {
   "wise_pick": ["route", "explain", "persist_decision_id", "learn_from_feedback"],
@@ -130,7 +132,7 @@ Execution outcomes may emit `mcp.execution_feedback.v1` child spans when feedbac
 
 ## Auto-Configuration Manifest (`wisepick.agent.v1`)
 
-Agents and scaffolds should emit or consume a single JSON file (e.g. `wisepick.agent.json`) at repo or runtime config root.
+Agents and integrators should emit or consume a single JSON file (e.g. `wisepick.agent.json`) at repo or runtime config root.
 
 ```json
 {

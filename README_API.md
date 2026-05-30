@@ -2,7 +2,7 @@
 
 > **Docs:** [Overview](./README.md) | [Integration & SDK](./README_API.md) | [Agent Protocol](./AGENTS.md)
 
-WisePick is a stateless decision layer: `POST /v1/decide` → ECU → your runtime executes → `POST /v1/feedback`. It does not run tools.
+**WisePick Decision API (WPDA)** is a stateless capability routing / decision layer: `POST /v1/decide` → ECU → your runtime executes → `POST /v1/feedback`. It does not run tools or own orchestration.
 
 **Agent protocol & runtime behavior:** [AGENTS.md](./AGENTS.md) only. **Product overview:** [README.md](./README.md).
 
@@ -10,13 +10,13 @@ WisePick is a stateless decision layer: `POST /v1/decide` → ECU → your runti
 
 ## Deployment & Production Requirements | 部署与生产环境要求
 
-**Production architecture contract:** WisePick API is the **logical control plane** of your product. In production, you must deploy the WisePick service in your private containers or cloud environment and ensure the Agent runtime can reach that API reliably (stable base URL, health checks, persistence).
+**Production architecture contract:** Deploy **WPDA** as your product’s **routing decision service** (not a task orchestrator). In production, run the WisePick API in your private containers or cloud environment and ensure the agent runtime can reach it reliably (stable base URL, health checks, persistence).
 
-**生产环境架构契约：** WisePick API 是您产品的**逻辑中枢**。在生产环境，您必须将 WisePick 服务部署在您的私有容器/云环境中，并确保 Agent 运行时可稳定访问该 API。
+**生产环境架构契约：** 将 **WPDA** 作为产品的**路由决策服务**部署（非任务编排引擎）。在生产环境，您须将 WisePick 服务部署在私有容器/云环境中，并确保 Agent 运行时可稳定访问该 API。
 
-**Data sovereignty and evolution:** Collective decision memory and the feedback learning loop depend on **persisted decision records** on your production API host (`DATABASE_URL`). If you do not run a production-grade WisePick API, your product cannot accumulate routing experience across releases.
+**Data sovereignty and evolution:** Execution feedback and the learning loop depend on **persisted decision records** on your WPDA host (`DATABASE_URL`). That store is the on-ramp to collective decision memory; the long-term **Execution Experience Network** vision is evolutionary—not a separate product you deploy today.
 
-**关于数据主权与演进：** WisePick 的「集体决策记忆」与「反馈学习闭环」依赖于您生产环境中持久化的 API 决策记录。若未上线生产级 API，您的产品将无法积累任何决策经验。
+**关于数据主权与演进：** 执行反馈与学习闭环依赖您 WPDA 生产环境中的持久化决策记录。该存储是集体决策记忆的起点；长期**执行经验网络**愿景为演进方向，而非当前需单独部署的网络产品。
 
 **Local bootstrap (logic validation only):** Configure `DATABASE_URL` in `.env` (see [.env.example](./.env.example)), then `uvicorn app.main:app --reload`. Smoke: `curl -s http://localhost:8000/health`.
 
