@@ -57,7 +57,7 @@ WisePick cuts tool searching, retry loops, latency, and cost by reusing executio
 [![ChainWeaver](https://img.shields.io/badge/ChainWeaver-000000?style=flat-square)](https://github.com/dgenio/ChainWeaver)
 [![Aetheris](https://img.shields.io/badge/Aetheris-000000?style=flat-square)](https://github.com/Colin4k1024/Aetheris)
 [![SafeAgent](https://img.shields.io/badge/SafeAgent-000000?style=flat-square)](https://github.com/azender1/SafeAgent)
-[![open-thymos](https://img.shields.io/badge/open-thymos-000000?style=flat-square)](https://github.com/gryszzz/open-thymos)
+[![open-thymos](https://img.shields.io/badge/open--thymos-000000?style=flat-square)](https://github.com/gryszzz/open-thymos)
 
 ---
 
