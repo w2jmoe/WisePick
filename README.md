@@ -6,7 +6,9 @@
 
 > **Docs:** [Overview](./README.md) | [Integration & SDK](./README_API.md) | [Agent Protocol](./AGENTS.md)
 
-**The deterministic layer that helps agent runtimes make better execution decisions | 帮助 Agent Runtime 做出更优执行决策的确定性层**
+**The deterministic layer that helps agent runtimes make better execution decisions.**
+
+**帮助 Agent Runtime 做出更优执行决策的确定性层。**
 
 [![GitHub stars](https://img.shields.io/github/stars/w2jmoe/WisePick?style=flat-square)](https://github.com/w2jmoe/WisePick/stargazers)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](./LICENSE)
@@ -24,7 +26,7 @@
 * Deterministic capability selection for AI agents.
 * 为 AI Agent 提供确定性能力选择。
 
-### What it is / 智选是什么
+### What it is | 智选是什么
 
 WisePick is a small decision layer for agent runtimes. It takes an intent, picks the best capability, and improves from execution feedback.
 
@@ -42,17 +44,11 @@ For teams running real agent workflows.
 
 面向运行真实 Agent Workflow 的团队。
 
-### Why it matters / 为什么重要
+### Why it matters | 为什么重要
 
 WisePick cuts tool searching, retry loops, latency, and cost by reusing execution feedback.
 
 智选通过复用执行反馈，减少工具搜索、重试循环、延迟和成本。
-
-> ECU (Executable Capability Unit)
->
-> A standardized executable capability an agent can route, invoke, and learn from.
->
-> 可执行能力单元：可被路由、调用并通过反馈学习的标准化能力抽象。
 
 ## 🌐 Ecosystem Alignment | 生态兼容
 
@@ -61,6 +57,7 @@ WisePick cuts tool searching, retry loops, latency, and cost by reusing executio
 [![ChainWeaver](https://img.shields.io/badge/ChainWeaver-000000?style=flat-square)](https://github.com/dgenio/ChainWeaver)
 [![Aetheris](https://img.shields.io/badge/Aetheris-000000?style=flat-square)](https://github.com/Colin4k1024/Aetheris)
 [![SafeAgent](https://img.shields.io/badge/SafeAgent-000000?style=flat-square)](https://github.com/azender1/SafeAgent)
+[![open-thymos](https://img.shields.io/badge/open-thymos-000000?style=flat-square)](https://github.com/gryszzz/open-thymos)
 
 ---
 
@@ -191,13 +188,16 @@ Routing updates from real execution outcomes.
 
 ```text
 Routing Core (decision_engine)
+Converts incoming tasks into ECU scores and selects the best capability.
 将输入任务转换为 ECU（执行单元）评分并进行路由决策。
 
 Capability Registry (api_tool_specs)
+Maintains available providers, capability labels, and bootstrap weights.
 管理可用 Provider、能力标签及冷启动权重分配。
 
 Execution Memory (tool_stats, feedback)
-存储执行反馈统计（由您的运行时上报）；智选不执行任务，仅据此优化路由。
+Stores execution feedback reported by your runtime and continuously improves routing quality.
+存储由运行时上报的执行反馈，并持续优化路由质量。
 ```
 
 ---
@@ -214,6 +214,12 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 | **Dynamic** | Auto-discovery | **Tool Anxiety:** Context explosion, loops, hallucinations | **Deterministic Filter:** Cuts 95% noise, 100% lock |
 
 ## 🔬 ECU Response (with ROI Metrics) | 带有 ROI 指标的 ECU 响应
+
+> **ECU (Executable Capability Unit)**
+>
+> A standardized executable capability an agent can route, invoke, and learn from.
+>
+> 可执行能力单元：可被路由、调用并通过反馈学习的标准化能力抽象。
 
 ```json
 {

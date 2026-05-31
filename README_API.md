@@ -306,6 +306,14 @@ Maps `DecideResponse` → `AetherisRouteEvidence` for durable evidence stores (n
 - Type: `AetherisRoutingAdvisor` → `to_evidence()`
 - Replay semantics (skip re-decide on replay): [AGENTS.md](./AGENTS.md#durable-execution-replay-semantics)
 
+### THYMOS (OpenThymos)
+
+Maps ECU → `RoutingEvidence`; attaches `routing_evidence` on outer `Proposal` per OpenThymos Proposal Contract v1 Option 2 (outside `ProposalBody`; no HTTP in adapter).
+
+- Module: [`adapters/thymos_adapter.py`](./adapters/thymos_adapter.py)
+- Types: `FallbackHint`, `RoutingEvidence`, `ThymosRoutingAdvisor`
+- Entry: `ThymosRoutingAdvisor(...).to_evidence()` then `attach_routing_evidence_to_proposal(proposal_envelope, evidence)`
+
 ### Examples
 
 [examples/wisepick_router.py](./examples/wisepick_router.py) · [examples/omnicore_adapter.py](./examples/omnicore_adapter.py)

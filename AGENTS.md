@@ -226,7 +226,16 @@ WisePick is stateless on the API side; **your runtime** owns idempotent executio
 | --- | --- | --- |
 | **SafeAgent** | `request_id` from `wisepick_to_safeagent_request_id` | Derived from `session_id`, `turn_id`, `start_time_ms`, normalized `task`, `capability_id`, `provider`, `constraints`. **Excludes** WisePick `decision_id` so a fresh decide with the same intent reuses the same SafeAgent slot. Orchestrator must pass stable `start_time_ms` across retries. |
 | **ChainWeaver** | Flow run identity (runtime-owned) | WisePick maps `capability_id` → `(flow_id, flow_version)`; ChainWeaver owns flow instance deduplication. |
+| **THYMOS (OpenThymos)** | `RoutingEvidence.decision_hash` | Integer-only wire (`confidence` 0–10000 basis points; `cost_estimate_usd` in USD millicents). `decision_hash` = SHA-256 over canonical JSON of stable fields; **excludes** WisePick `decision_id`, timestamps, and floats. `routing_evidence` MUST sit on `Proposal`, not `ProposalBody`, so `ProposalId = blake3(canonical_json(ProposalBody))` is unchanged. |
 | **Generic** | Your workflow/run ID | Bind `decision_id` to audit logs; use a separate idempotency key for side-effecting work. |
+
+### Proposal routing evidence (THYMOS)
+
+For OpenThymos proposal compilation (after `/v1/decide`, before governed execution):
+
+- **Record** at attach time: full `RoutingEvidence` (`selected`, `alternatives`, `reason_codes`, integer estimates, `fallback_hint`) plus `decision_hash`.
+- **Attach:** use `attach_routing_evidence_to_proposal`; **prohibited** nesting `routing_evidence` inside `ProposalBody`.
+- **Replay:** rehydrate from stored `RoutingEvidence` / `decision_hash`; do not inject floats or re-encode from a new `decision_id` when reproducing ledger-facing proposal metadata.
 
 ### Durable execution replay semantics
 
