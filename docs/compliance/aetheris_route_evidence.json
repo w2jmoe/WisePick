@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisepick.dev/schemas/compliance/aetheris_route_evidence.v1.json",
+  "title": "AetherisRouteEvidence",
+  "description": "OxDeAI non-authoritative routing audit artifact produced from WisePick ECU output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_hash",
+    "selected",
+    "alternatives",
+    "confidence_bps",
+    "reason_codes",
+    "latency_estimate_ms",
+    "cost_estimate_millicents"
+  ],
+  "properties": {
+    "decision_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex digest of the canonical preimage (audit metadata only; not an authorization input)."
+    },
+    "routing_decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional WisePick /v1/decide decision_id. When present, included in the decision_hash preimage for audit correlation."
+    },
+    "selected": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Normalized selected capability_id (strip + lower)."
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      },
+      "description": "Ranked non-primary capability/provider labels (normalized)."
+    },
+    "confidence_bps": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Routing confidence in basis points (integer only)."
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["capability_match", "fallback_routing"]
+      }
+    },
+    "latency_estimate_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-binding latency estimate in milliseconds (excluded from decision_hash preimage)."
+    },
+    "cost_estimate_millicents": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-binding cost estimate in USD millicents (1 USD = 100_000; excluded from decision_hash preimage)."
+    }
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "schema": "wisepick.aetheris_replay.v1",
+  "suite_id": "deterministic_suite_v1",
+  "description": "Byte-stable routing replay fixtures for Aetheris recovery invariant validation. OxDeAI wire + OpenThymos-aligned fallback metadata.",
+  "canonicalization": {
+    "preimage_profile": "oxdeai_v1",
+    "preimage_schema_ref": "docs/compliance/aetheris_route_evidence.json",
+    "wire_schema_ref": "docs/compliance/aetheris_route_evidence.json",
+    "json_encoding": "utf-8",
+    "sort_keys": true,
+    "separators": [",", ":"],
+    "floats_on_wire": false,
+    "decision_hash_excludes": [
+      "decision_hash",
+      "latency_estimate_ms",
+      "cost_estimate_millicents"
+    ]
+  },
+  "non_authoritative_declaration": {
+    "decision_hash_audit_only": true,
+    "authorization_v1_input": false,
+    "pep_enforcement_input": false
+  },
+  "cases": [
+    {
+      "case_id": "audio_transcription_board_meeting_v1",
+      "routing_input": {
+        "task": "Transcribe the board meeting recording and produce a compliance summary",
+        "context": {
+          "session_id": "aetheris-replay-sess-001",
+          "trace_id": "trace_aetheris_replay_001",
+          "turn_id": 1
+        },
+        "constraints": {
+          "max_cost_usd_millicents": 250000,
+          "latency_budget_ms": 120000,
+          "data_classification": "internal",
+          "region": "us-east-1"
+        }
+      },
+      "wise_pick_ecu_snapshot": {
+        "decision_id": "dec_aetheris_demo_001",
+        "capability_id": "audio_transcription",
+        "provider": "feishu_minutes",
+        "execution_type": "api",
+        "callable": true,
+        "tool_key": "feishu_minutes",
+        "reason": "Capability routing matched: audio_transcription",
+        "confidence_bps": 7500,
+        "explain": {
+          "selected_capability": {
+            "capability_id": "audio_transcription",
+            "provider": "feishu_minutes",
+            "matched_capabilities": ["audio_transcription"]
+          }
+        },
+        "trace": {
+          "latency_ms": 3,
+          "top_candidates": [
+            {
+              "rank": 1,
+              "capability_id": "audio_transcription",
+              "provider": "feishu_minutes",
+              "score_bps": 7500,
+              "selected": true
+            },
+            {
+              "rank": 2,
+              "capability_id": "audio_transcription",
+              "provider": "tongyi_tingwu",
+              "score_bps": 7000,
+              "selected": false
+            },
+            {
+              "rank": 3,
+              "capability_id": "audio_transcription",
+              "provider": "openai",
+              "score_bps": 7100,
+              "selected": false
+            }
+          ]
+        }
+      },
+      "candidates": [
+        {
+          "rank": 1,
+          "capability_id": "audio_transcription",
+          "provider": "feishu_minutes",
+          "label": "audio_transcription",
+          "score_bps": 7500,
+          "execution_type": "api",
+          "callable": true,
+          "selected": true
+        },
+        {
+          "rank": 2,
+          "capability_id": "audio_transcription",
+          "provider": "tongyi_tingwu",
+          "label": "tongyi_tingwu",
+          "score_bps": 7000,
+          "execution_type": "api",
+          "callable": true,
+          "selected": false
+        },
+        {
+          "rank": 3,
+          "capability_id": "audio_transcription",
+          "provider": "openai",
+          "label": "openai",
+          "score_bps": 7100,
+          "execution_type": "api",
+          "callable": true,
+          "selected": false
+        }
+      ],
+      "selected": {
+        "capability_id": "audio_transcription",
+        "provider": "feishu_minutes",
+        "label": "audio_transcription",
+        "execution_type": "api"
+      },
+      "fallback_policy": {
+        "mode": "use_alternative",
+        "alternative_rank": 2,
+        "fallback_hint": {
+          "provider": "tongyi_tingwu",
+          "model": "audio_transcription",
+          "reason": "use_alternative_on_primary_failure"
+        },
+        "notes": "THYMOS/Aetheris recovery runner: promote rank-2 after governance pass; no AuthorizationV1 coupling"
+      },
+      "expected": {
+        "route_evidence_wire": {
+          "decision_hash": "306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa",
+          "routing_decision_id": "dec_aetheris_demo_001",
+          "selected": "audio_transcription",
+          "alternatives": ["tongyi_tingwu"],
+          "confidence_bps": 7500,
+          "reason_codes": ["capability_match"],
+          "latency_estimate_ms": 45000,
+          "cost_estimate_millicents": 18000
+        },
+        "route_evidence_internal": {
+          "decision_id": "dec_aetheris_demo_001",
+          "selected_capability": "audio_transcription",
+          "candidate_list": ["audio_transcription", "tongyi_tingwu"],
+          "score_bps": 7500,
+          "reason_codes": ["capability_match"]
+        },
+        "decision_hash": "306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa",
+        "canonical_preimage_json": "{\"candidate_list\":[\"audio_transcription\",\"tongyi_tingwu\"],\"decision_id\":\"dec_aetheris_demo_001\",\"reason_codes\":[\"capability_match\"],\"score_bps\":7500,\"selected_capability\":\"audio_transcription\"}"
+      },
+      "envelope_attachment": {
+        "authoritative_path": "authorization",
+        "non_authoritative_path": "metadata.routing_evidence",
+        "example": {
+          "authorization": {
+            "schema": "authorization.v1",
+            "note": "Placeholder — Aetheris recovery runner supplies real AuthorizationV1; routing_evidence MUST NOT be merged here"
+          },
+          "metadata": {
+            "routing_evidence": {
+              "decision_hash": "306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa",
+              "routing_decision_id": "dec_aetheris_demo_001",
+              "selected": "audio_transcription",
+              "alternatives": ["tongyi_tingwu"],
+              "confidence_bps": 7500,
+              "reason_codes": ["capability_match"],
+              "latency_estimate_ms": 45000,
+              "cost_estimate_millicents": 18000
+            }
+          }
+        }
+      }
+    }
+  ]
+}

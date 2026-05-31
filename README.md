@@ -341,9 +341,9 @@ WisePick provides decision intelligence and feedback loops—not task execution.
 
 **长期愿景：执行经验网络（Execution Experience Network）— 跨运行时的集体决策记忆。**
 
-**Today:** [WisePick Decision API (WPDA)](#-wisepick-decision-api-wpda) delivers deterministic capability routing and execution feedback via SDK integration; your runtime owns invoke, policy, and retries.
+**Today:** WisePick Decision API (WPDA) delivers deterministic capability routing and execution feedback via SDK integration; your runtime owns invoke, policy, and retries.
 
-**当前：** [WisePick Decision API（WPDA）](#-wisepick-decision-api-wpda) 通过 SDK 提供确定性能力路由与执行反馈；工具调用、策略与重试由您的运行时负责。
+**当前：** WisePick Decision API（WPDA） 通过 SDK 提供确定性能力路由与执行反馈；工具调用、策略与重试由您的运行时负责。
 
 WisePick turns execution outcomes into reusable routing experience — the foundation for shared ECU feedback and feedback-driven execution optimization on the path to that network.
 
