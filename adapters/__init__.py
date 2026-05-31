@@ -10,6 +10,10 @@ from adapters.safeagent_adapter import (
     SafeAgentRoutingDecision,
     wisepick_to_safeagent_request_id,
 )
+from adapters.omnicore_replay_adapter import (
+    OmniCoreReplayEvidence,
+    OmniCoreRoutingAdvisor,
+)
 
 __all__ = [
     "ChainWeaverAdapter",
@@ -18,4 +22,6 @@ __all__ = [
     "SafeAgentAdapter",
     "SafeAgentRoutingDecision",
     "wisepick_to_safeagent_request_id",
+    "OmniCoreReplayEvidence",
+    "OmniCoreRoutingAdvisor",
 ]
