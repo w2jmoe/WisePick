@@ -20,6 +20,11 @@ from adapters.chainweaver_adapter import (  # noqa: E402
     WeaverRouterContract,
 )
 
+# Deterministic wire fixtures (integer-only in test assertions).
+CONFIDENCE_BPS_HIGH = 9000
+CONFIDENCE_BPS_TRANSCRIBE = 8800
+COST_REPORT_MILLICENTS = {"input": 10, "output": 5, "usd_millicents": 1000}
+
 
 class FakeWisePick:
     def __init__(self, ecu: dict) -> None:
@@ -45,6 +50,7 @@ def test_flow_executor_stub_satisfies_execute_flow_contract():
     assert result.total_duration_ms == 42
     assert result.duration_ms == 42
     assert "input" in result.cost_report
+    assert result.cost_report["usd_millicents"] == COST_REPORT_MILLICENTS["usd_millicents"]
     assert isinstance(result.execution_log, list)
 
 
@@ -57,14 +63,14 @@ def test_normalize_execution_includes_total_duration_ms_and_cost_report():
         trace_id="trace-xyz",
         total_duration_ms=99,
         duration_ms=99,
-        cost_report={"input": 3, "output": 7},
+        cost_report={"input": 3, "output": 7, "usd_millicents": 500},
         started_at="t0",
         ended_at="t1",
         initial_input={"task": "x"},
     )
     normalized = WisePickChainWeaverAdapter._normalize_execution(raw)
     assert normalized["total_duration_ms"] == 99
-    assert normalized["cost_report"] == {"input": 3, "output": 7}
+    assert normalized["cost_report"] == {"input": 3, "output": 7, "usd_millicents": 500}
     assert normalized["trace_id"] == "trace-xyz"
     assert normalized["started_at"] == "t0"
     assert normalized["ended_at"] == "t1"
@@ -78,7 +84,7 @@ def test_explicit_mapping_required():
             "capability_id": "unknown_cap",
             "provider": "p",
             "callable": True,
-            "confidence": 0.9,
+            "confidence": CONFIDENCE_BPS_HIGH,
             "reason": "test",
         }
     )
@@ -105,7 +111,7 @@ def test_select_and_execute_maps_contract_and_feedback_trace():
             "provider": "feishu_minutes",
             "execution_type": "api",
             "callable": True,
-            "confidence": 0.88,
+            "confidence": CONFIDENCE_BPS_TRANSCRIBE,
             "reason": "capability_match",
         }
     )
@@ -126,7 +132,7 @@ def test_select_and_execute_maps_contract_and_feedback_trace():
     assert contract == {
         "flow_id": "transcribe_v2",
         "flow_version": "2.1.0",
-        "confidence_bps": 8800,
+        "confidence_bps": CONFIDENCE_BPS_TRANSCRIBE,
         "reasoning": "capability_match",
     }
     assert WeaverRouterContract(**contract).flow_version == "2.1.0"
@@ -134,12 +140,12 @@ def test_select_and_execute_maps_contract_and_feedback_trace():
     execution = out["execution"]
     assert execution is not None
     assert execution["total_duration_ms"] == 42
-    assert execution["cost_report"] == {"input": 10, "output": 5, "usd": 0.01}
+    assert execution["cost_report"] == COST_REPORT_MILLICENTS
 
     cw = out["trace"]["chainweaver"]
     assert cw["trace_id"]
     assert cw["total_duration_ms"] == 42
-    assert cw["cost_report"] == {"input": 10, "output": 5, "usd": 0.01}
+    assert cw["cost_report"] == COST_REPORT_MILLICENTS
     assert len(cw["execution_log"]) == 1
 
     fb = wp.feedback_calls[0]

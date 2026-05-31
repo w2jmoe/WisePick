@@ -408,7 +408,7 @@ class StubFlowExecutor:
             trace_id=uuid.uuid4().hex,
             total_duration_ms=42,
             duration_ms=42,
-            cost_report={"input": 10, "output": 5, "usd": 0.01},
+            cost_report={"input": 10, "output": 5, "usd_millicents": 1000},
             started_at="2025-01-01T00:00:00Z",
             ended_at="2025-01-01T00:00:00.042Z",
             initial_input=dict(initial_input),
