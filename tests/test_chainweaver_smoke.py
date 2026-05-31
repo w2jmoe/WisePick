@@ -58,7 +58,7 @@ def test_route_returns_routing_decision() -> None:
     assert isinstance(decision, RoutingDecision)
     assert decision.flow_id == "general_flow"
     assert decision.flow_version == "1.0.0"
-    assert decision.confidence == 0.75
+    assert decision.confidence_bps == 7500
     assert "capability" in decision.reasoning or decision.reasoning
 
 

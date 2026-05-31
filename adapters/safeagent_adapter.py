@@ -24,6 +24,11 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from adapters.utils import (  # noqa: E402
+    confidence_to_basis_points,
+    normalize_capability_id,
+    normalize_provider,
+)
 from wisepick import WisePickClient  # noqa: E402
 
 SAFEAGENT_REQUEST_ID_VERSION = 2
@@ -64,8 +69,8 @@ def wisepick_to_safeagent_request_id(
         "turn_id": str(turn_id),
         "start_time_ms": int(start_time_ms),
         "task": _normalize_task(task),
-        "capability_id": (capability_id or "").strip(),
-        "provider": (provider or "").strip(),
+        "capability_id": normalize_capability_id(capability_id),
+        "provider": normalize_provider(provider),
         "constraints": dict(constraints or {}),
     }
     preimage = json.dumps(
@@ -95,7 +100,7 @@ class SafeAgentRoutingDecision:
     capability_id: str
     provider: str
     execution_type: str
-    confidence: float
+    confidence_bps: int
     callable: bool
     reasoning: str
 
@@ -142,8 +147,9 @@ class SafeAgentAdapter:
     ) -> Dict[str, Any]:
         """Map WisePick ECU JSON to SafeAgent invoke payload (contract alignment)."""
         start_time_ms = _resolve_start_time_ms(start_time)
-        capability_id = str(ecu.get("capability_id") or "").strip()
-        provider = str(ecu.get("provider") or ecu.get("tool_key") or "").strip()
+        capability_id = normalize_capability_id(str(ecu.get("capability_id") or ""))
+        provider = normalize_provider(str(ecu.get("provider") or ecu.get("tool_key") or ""))
+        confidence_bps = confidence_to_basis_points(ecu.get("confidence") or 0)
         request_id = wisepick_to_safeagent_request_id(
             session_id=session_id,
             turn_id=turn_id,
@@ -162,7 +168,7 @@ class SafeAgentAdapter:
             "provider": provider,
             "execution_type": str(ecu.get("execution_type") or "api"),
             "callable": bool(ecu.get("callable", True)),
-            "confidence": float(ecu.get("confidence") or 0.0),
+            "confidence_bps": confidence_bps,
             "task": task,
             "reason": str(ecu.get("reason") or ""),
         }
@@ -193,7 +199,7 @@ class SafeAgentAdapter:
             capability_id=dispatch["capability_id"],
             provider=dispatch["provider"],
             execution_type=dispatch["execution_type"],
-            confidence=dispatch["confidence"],
+            confidence_bps=dispatch["confidence_bps"],
             callable=dispatch["callable"],
             reasoning=dispatch["reason"],
         )

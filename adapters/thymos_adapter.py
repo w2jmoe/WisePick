@@ -20,16 +20,17 @@ from typing import Any, Mapping, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from adapters.utils import (
+    BASIS_POINTS_SCALE,
+    assert_no_floats,
+    build_reason_codes_from_decide,
+    confidence_to_basis_points,
+    format_route_label,
+    normalize_capability_id,
+    normalize_provider,
+    usd_to_millicents,
+)
 from app.schemas.decide import DecideResponse
-
-_LOW_CONFIDENCE_THRESHOLD = 0.01
-_FALLBACK_CAPABILITY_IDS = frozenset({"none", "general_capability", ""})
-_ROUTE_LABEL_SEP = "/"
-_BASIS_POINTS_SCALE = 10_000
-_USD_MILLICENTS_SCALE = 100_000  # 1 USD = 100_000 millicents (1 millicent = $0.00001)
-
-
-# ── THYMOS wire types (integer-only numerics for replay determinism) ─────────
 
 
 class FallbackHint(BaseModel):
@@ -41,6 +42,18 @@ class FallbackHint(BaseModel):
     model: str = Field(..., min_length=1, description="Capability / route model id (not an LLM name).")
     reason: str = Field(..., min_length=1)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_tokens(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            out = dict(data)
+            if "provider" in out:
+                out["provider"] = normalize_provider(str(out["provider"]))
+            if "model" in out:
+                out["model"] = normalize_capability_id(str(out["model"]))
+            return out
+        return data
+
 
 class RoutingEvidence(BaseModel):
     """
@@ -49,15 +62,25 @@ class RoutingEvidence(BaseModel):
     All numeric fields are integers — no floats on the replay/canonical surface.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     decision_hash: str = Field(..., min_length=64, max_length=64)
     selected: str = Field(..., min_length=1)
     alternatives: list[str] = Field(default_factory=list)
-    confidence: int = Field(..., ge=0, le=_BASIS_POINTS_SCALE)
+    confidence_bps: int = Field(
+        ...,
+        ge=0,
+        le=BASIS_POINTS_SCALE,
+        serialization_alias="confidence",
+    )
     reason_codes: list[str] = Field(..., min_length=1)
     latency_estimate_ms: int = Field(..., ge=0)
-    cost_estimate_usd: int = Field(..., ge=0, description="USD millicents (1 USD = 100_000).")
+    cost_estimate_usd_millicents: int = Field(
+        ...,
+        ge=0,
+        serialization_alias="cost_estimate_usd",
+        description="USD millicents (1 USD = 100_000).",
+    )
     fallback_hint: FallbackHint
 
     @model_validator(mode="after")
@@ -67,41 +90,14 @@ class RoutingEvidence(BaseModel):
         return self
 
 
-# ── Encoding helpers ───────────────────────────────────────────────────────────
-
-
-def format_route_label(capability_id: str, provider: str) -> str:
-    """Canonical route label: ``{capability_id}/{provider}``."""
-    cap = (capability_id or "").strip()
-    prov = (provider or "").strip()
-    if not cap or not prov:
-        raise ValueError("capability_id and provider are required for route label")
-    return f"{cap}{_ROUTE_LABEL_SEP}{prov}"
-
-
-def confidence_to_basis_points(confidence: float) -> int:
-    """Map WisePick score in [0, 1] (or already basis points) to 0–10000."""
-    value = float(confidence)
-    if value > 1.0:
-        if value <= _BASIS_POINTS_SCALE:
-            return int(round(value))
-        return _BASIS_POINTS_SCALE
-    return min(_BASIS_POINTS_SCALE, max(0, int(round(value * _BASIS_POINTS_SCALE))))
-
-
-def usd_to_millicents(amount_usd: float) -> int:
-    """Convert USD float estimate to integer millicents (replay-safe)."""
-    return max(0, int(round(float(amount_usd) * _USD_MILLICENTS_SCALE)))
-
-
 def compute_routing_decision_hash(
     *,
     selected: str,
     alternatives: list[str],
     reason_codes: list[str],
-    confidence: int,
+    confidence_bps: int,
     latency_estimate_ms: int,
-    cost_estimate_usd: int,
+    cost_estimate_usd_millicents: int,
     fallback_hint: FallbackHint,
 ) -> str:
     """
@@ -113,9 +109,9 @@ def compute_routing_decision_hash(
         "selected": selected,
         "alternatives": list(alternatives),
         "reason_codes": sorted(reason_codes),
-        "confidence": int(confidence),
+        "confidence_bps": int(confidence_bps),
         "latency_estimate_ms": int(latency_estimate_ms),
-        "cost_estimate_usd": int(cost_estimate_usd),
+        "cost_estimate_usd_millicents": int(cost_estimate_usd_millicents),
         "fallback_hint": fallback_hint.model_dump(),
     }
     preimage = json.dumps(
@@ -127,9 +123,6 @@ def compute_routing_decision_hash(
     return hashlib.sha256(preimage.encode("utf-8")).hexdigest()
 
 
-# ── WisePick ECU → RoutingEvidence ─────────────────────────────────────────────
-
-
 def _coerce_decide_response(decision: Union[DecideResponse, dict[str, Any]]) -> DecideResponse:
     if isinstance(decision, DecideResponse):
         return decision
@@ -138,23 +131,8 @@ def _coerce_decide_response(decision: Union[DecideResponse, dict[str, Any]]) -> 
     raise TypeError("decision must be DecideResponse or dict")
 
 
-def _build_reason_codes(response: DecideResponse) -> list[str]:
-    if not response.callable:
-        return ["fallback_routing"]
-    if float(response.confidence) < _LOW_CONFIDENCE_THRESHOLD:
-        return ["fallback_routing"]
-    explain = response.explain if isinstance(response.explain, dict) else {}
-    selected = explain.get("selected_capability")
-    if isinstance(selected, dict) and selected.get("matched_capabilities"):
-        return ["capability_match"]
-    cap = (response.capability_id or "").strip()
-    if cap and cap not in _FALLBACK_CAPABILITY_IDS:
-        return ["capability_match"]
-    return ["fallback_routing"]
-
-
 def _ranked_pairs_from_ecu(ecu: Mapping[str, Any]) -> list[tuple[str, str, int]]:
-    """Return [(capability_id, provider, rank), ...] sorted by rank."""
+    """Return [(capability_id, provider, rank), ...] sorted by rank (normalized)."""
     trace = ecu.get("trace") if isinstance(ecu.get("trace"), dict) else {}
     raw = trace.get("top_candidates")
     rows: list[tuple[str, str, int]] = []
@@ -162,14 +140,14 @@ def _ranked_pairs_from_ecu(ecu: Mapping[str, Any]) -> list[tuple[str, str, int]]
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            cap = str(item.get("capability_id") or "").strip()
-            prov = str(item.get("provider") or item.get("tool_key") or "").strip()
+            cap = normalize_capability_id(str(item.get("capability_id") or ""))
+            prov = normalize_provider(str(item.get("provider") or item.get("tool_key") or ""))
             if not cap or not prov:
                 continue
             rows.append((cap, prov, int(item.get("rank") or len(rows) + 1)))
     if not rows:
-        cap = str(ecu.get("capability_id") or "").strip()
-        prov = str(ecu.get("provider") or ecu.get("tool_key") or "").strip()
+        cap = normalize_capability_id(str(ecu.get("capability_id") or ""))
+        prov = normalize_provider(str(ecu.get("provider") or ecu.get("tool_key") or ""))
         if cap and prov:
             rows.append((cap, prov, 1))
     rows.sort(key=lambda r: r[2])
@@ -183,15 +161,17 @@ def _estimate_cost_latency(
     constraints: Mapping[str, Any] | None,
 ) -> tuple[int, int]:
     """Return (latency_estimate_ms, cost_estimate_usd_millicents)."""
+    cap = normalize_capability_id(capability_id)
+    prov = normalize_provider(provider)
     base_latency = {
         "audio_transcription": 45_000,
         "general_content": 8_000,
-    }.get(capability_id, 15_000)
+    }.get(cap, 15_000)
     base_cost_usd = {
         ("audio_transcription", "feishu_minutes"): 0.18,
         ("audio_transcription", "tongyi_tingwu"): 0.22,
         ("audio_transcription", "openai"): 0.35,
-    }.get((capability_id, provider), 0.12)
+    }.get((cap, prov), 0.12)
     budget_ms = constraints.get("latency_budget_ms") if constraints else None
     if isinstance(budget_ms, (int, float)) and budget_ms > 0:
         base_latency = min(int(base_latency), int(budget_ms))
@@ -225,8 +205,14 @@ class ThymosRoutingAdvisor:
         selected_label = format_route_label(cap0, prov0)
         alt_labels = [format_route_label(c, p) for c, p, _ in ranked[1:3]]
 
-        reason_codes = _build_reason_codes(self._decision)
-        confidence = confidence_to_basis_points(float(self._decision.confidence))
+        explain = self._decision.explain if isinstance(self._decision.explain, dict) else {}
+        reason_codes = build_reason_codes_from_decide(
+            callable=self._decision.callable,
+            confidence=self._decision.confidence,
+            capability_id=self._decision.capability_id,
+            explain=explain,
+        )
+        confidence_bps = confidence_to_basis_points(self._decision.confidence)
         latency_ms, cost_mc = _estimate_cost_latency(cap0, prov0, constraints=self._constraints)
 
         if len(ranked) > 1:
@@ -247,9 +233,9 @@ class ThymosRoutingAdvisor:
             selected=selected_label,
             alternatives=alt_labels,
             reason_codes=reason_codes,
-            confidence=confidence,
+            confidence_bps=confidence_bps,
             latency_estimate_ms=latency_ms,
-            cost_estimate_usd=cost_mc,
+            cost_estimate_usd_millicents=cost_mc,
             fallback_hint=hint,
         )
 
@@ -257,15 +243,12 @@ class ThymosRoutingAdvisor:
             decision_hash=decision_hash,
             selected=selected_label,
             alternatives=alt_labels,
-            confidence=confidence,
+            confidence_bps=confidence_bps,
             reason_codes=reason_codes,
             latency_estimate_ms=latency_ms,
-            cost_estimate_usd=cost_mc,
+            cost_estimate_usd_millicents=cost_mc,
             fallback_hint=hint,
         )
-
-
-# ── Proposal attach (Option 2) ─────────────────────────────────────────────────
 
 
 def _looks_like_proposal_body(payload: Mapping[str, Any]) -> bool:
@@ -321,27 +304,13 @@ def attach_routing_evidence_to_proposal(
             "it would change ProposalId = blake3(canonical_json(ProposalBody))"
         )
 
-    wire = evidence.model_dump(mode="json")
-    _assert_no_floats(wire)
+    wire = evidence.model_dump(mode="json", by_alias=True)
+    assert_no_floats(wire)
 
     out = {**envelope, "routing_evidence": wire}
     if "routing_evidence" in out.get("body", {}):
         raise RuntimeError("internal error: routing_evidence leaked into ProposalBody")
     return out
-
-
-def _assert_no_floats(obj: Any) -> None:
-    if isinstance(obj, float):
-        raise TypeError("routing_evidence must not contain floats")
-    if isinstance(obj, dict):
-        for v in obj.values():
-            _assert_no_floats(v)
-    elif isinstance(obj, list):
-        for item in obj:
-            _assert_no_floats(item)
-
-
-# ── Self-test ──────────────────────────────────────────────────────────────────
 
 
 def _self_test() -> dict[str, Any]:
@@ -394,8 +363,8 @@ def _self_test() -> dict[str, Any]:
     }
 
     evidence = ThymosRoutingAdvisor(mock_ecu).to_evidence()
-    assert evidence.confidence == 8200
-    assert evidence.cost_estimate_usd == usd_to_millicents(0.18)
+    assert evidence.confidence_bps == 8200
+    assert evidence.cost_estimate_usd_millicents == usd_to_millicents(0.18)
     assert evidence.selected == "audio_transcription/feishu_minutes"
     assert len(evidence.alternatives) == 2
 
@@ -407,15 +376,17 @@ def _self_test() -> dict[str, Any]:
     assert attached["body"] == mock_body
     assert "routing_evidence" in attached
     assert "routing_evidence" not in attached["body"]
-    _assert_no_floats(attached["routing_evidence"])
+    assert attached["routing_evidence"]["confidence"] == 8200
+    assert attached["routing_evidence"]["cost_estimate_usd"] == usd_to_millicents(0.18)
+    assert_no_floats(attached["routing_evidence"])
 
     replay_hash = compute_routing_decision_hash(
         selected=evidence.selected,
         alternatives=list(evidence.alternatives),
         reason_codes=list(evidence.reason_codes),
-        confidence=evidence.confidence,
+        confidence_bps=evidence.confidence_bps,
         latency_estimate_ms=evidence.latency_estimate_ms,
-        cost_estimate_usd=evidence.cost_estimate_usd,
+        cost_estimate_usd_millicents=evidence.cost_estimate_usd_millicents,
         fallback_hint=evidence.fallback_hint,
     )
     assert replay_hash == evidence.decision_hash

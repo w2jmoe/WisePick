@@ -230,7 +230,7 @@ def main() -> None:
     _kv("provider", route.provider)
     _kv("execution_type", route.execution_type)
     _kv("callable", route.callable)
-    _kv("confidence", f"{route.confidence:.2f}")
+    _kv("confidence_bps", route.confidence_bps)
     _kv("request_id", route.request_id)
 
     expected_request_id = wisepick_to_safeagent_request_id(

@@ -126,7 +126,7 @@ def test_select_and_execute_maps_contract_and_feedback_trace():
     assert contract == {
         "flow_id": "transcribe_v2",
         "flow_version": "2.1.0",
-        "confidence": 0.88,
+        "confidence_bps": 8800,
         "reasoning": "capability_match",
     }
     assert WeaverRouterContract(**contract).flow_version == "2.1.0"

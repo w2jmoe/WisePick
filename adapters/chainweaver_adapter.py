@@ -21,6 +21,11 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from adapters.utils import (  # noqa: E402
+    confidence_to_basis_points,
+    normalize_capability_id,
+    normalize_provider,
+)
 from wisepick import WisePickClient  # noqa: E402
 
 CHAINWEAVER_TRACE_SCHEMA = "mcp.chainweaver_execution.v1"
@@ -50,7 +55,7 @@ class FlowRouteMapping:
 class WeaverRouterContract:
     flow_id: str
     flow_version: str
-    confidence: float
+    confidence_bps: int
     reasoning: str
 
 
@@ -78,7 +83,7 @@ class RoutingDecision:
 
     flow_id: str
     flow_version: str
-    confidence: float
+    confidence_bps: int
     reasoning: str
 
     @classmethod
@@ -86,7 +91,7 @@ class RoutingDecision:
         return cls(
             flow_id=contract.flow_id,
             flow_version=contract.flow_version,
-            confidence=contract.confidence,
+            confidence_bps=contract.confidence_bps,
             reasoning=contract.reasoning,
         )
 
@@ -108,7 +113,7 @@ class WisePickChainWeaverAdapter:
         self._capability_to_flow = dict(capability_to_flow)
 
     def _resolve_mapping(self, capability_id: str) -> FlowRouteMapping:
-        key = (capability_id or "").strip()
+        key = normalize_capability_id(capability_id)
         if key not in self._capability_to_flow:
             raise UnmappedCapabilityError(
                 f"No explicit flow mapping for capability_id={key!r}. "
@@ -117,19 +122,20 @@ class WisePickChainWeaverAdapter:
         return self._capability_to_flow[key]
 
     def _ecu_to_contract(self, ecu: Dict[str, Any]) -> WeaverRouterContract:
-        cap = str(ecu.get("capability_id") or "").strip()
+        cap = normalize_capability_id(str(ecu.get("capability_id") or ""))
+        confidence_bps = confidence_to_basis_points(ecu.get("confidence") or 0)
         if not cap:
             return WeaverRouterContract(
                 flow_id="",
                 flow_version="",
-                confidence=float(ecu.get("confidence") or 0.0),
+                confidence_bps=confidence_bps,
                 reasoning=str(ecu.get("reason") or ""),
             )
         mapping = self._resolve_mapping(cap)
         return WeaverRouterContract(
             flow_id=mapping.flow_id,
             flow_version=mapping.flow_version,
-            confidence=float(ecu.get("confidence") or 0.0),
+            confidence_bps=confidence_bps,
             reasoning=str(ecu.get("reason") or ""),
         )
 
@@ -142,7 +148,7 @@ class WisePickChainWeaverAdapter:
         started = time.perf_counter()
         ecu = self._wp.decide(user_request)
         decision_id = str(ecu.get("decision_id") or "")
-        capability_id = str(ecu.get("capability_id") or "")
+        capability_id = normalize_capability_id(str(ecu.get("capability_id") or ""))
 
         try:
             contract = self._ecu_to_contract(ecu)
@@ -150,13 +156,13 @@ class WisePickChainWeaverAdapter:
             contract = WeaverRouterContract(
                 flow_id="",
                 flow_version="",
-                confidence=float(ecu.get("confidence") or 0.0),
+                confidence_bps=confidence_to_basis_points(ecu.get("confidence") or 0),
                 reasoning=str(ecu.get("reason") or ""),
             )
             trace = WeaverExecutionTrace(
                 decision_id=decision_id,
                 capability_id=capability_id,
-                provider=str(ecu.get("provider") or ""),
+                provider=normalize_provider(str(ecu.get("provider") or "")),
                 callable=bool(ecu.get("callable")),
                 contract=contract,
                 ecu=ecu,
@@ -169,7 +175,7 @@ class WisePickChainWeaverAdapter:
         trace = WeaverExecutionTrace(
             decision_id=decision_id,
             capability_id=capability_id,
-            provider=str(ecu.get("provider") or ""),
+            provider=normalize_provider(str(ecu.get("provider") or "")),
             callable=bool(ecu.get("callable")),
             contract=contract,
             ecu=ecu,
@@ -223,7 +229,7 @@ class WisePickChainWeaverAdapter:
             return RoutingDecision(
                 flow_id="",
                 flow_version="",
-                confidence=float(ecu.get("confidence") or 0.0),
+                confidence_bps=confidence_to_basis_points(ecu.get("confidence") or 0),
                 reasoning=str(ecu.get("reason") or ""),
             )
         return RoutingDecision.from_contract(contract)
