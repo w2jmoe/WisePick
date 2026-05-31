@@ -371,12 +371,12 @@ WisePick turns execution outcomes into reusable routing experience — the found
 
 ## 🌐 Ecosystem Alignment | 生态兼容
 
-[YantrikDB](https://github.com/yantrikos/yantrikdb-server)
-[Langfuse-MCP](https://github.com/avivsinai/langfuse-mcp)
-[ChainWeaver](https://github.com/dgenio/ChainWeaver)
-[Aetheris](https://github.com/Colin4k1024/Aetheris)
-[SafeAgent](https://github.com/azender1/SafeAgent)
-[Open-thymos](https://github.com/gryszzz/open-thymos)
+[![YantrikDB](https://img.shields.io/badge/YantrikDB-000000?style=flat-square)](https://github.com/yantrikos/yantrikdb-server)
+[![Langfuse-MCP](https://img.shields.io/badge/Langfuse--MCP-000000?style=flat-square)](https://github.com/avivsinai/langfuse-mcp)
+[![ChainWeaver](https://img.shields.io/badge/ChainWeaver-000000?style=flat-square)](https://github.com/dgenio/ChainWeaver)
+[![Aetheris](https://img.shields.io/badge/Aetheris-000000?style=flat-square)](https://github.com/Colin4k1024/Aetheris)
+[![SafeAgent](https://img.shields.io/badge/SafeAgent-000000?style=flat-square)](https://github.com/azender1/SafeAgent)
+[![Open-thymos](https://img.shields.io/badge/open--thymos-000000?style=flat-square)](https://github.com/gryszzz/open-thymos)
 
 ---
 
