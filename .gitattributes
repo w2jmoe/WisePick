@@ -1,0 +1,10 @@
+# Normalize line endings: LF in repository; Git handles checkout on Windows.
+* text=auto eol=lf
+
+# Binary assets — do not apply text normalization
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary

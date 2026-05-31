@@ -36,3 +36,12 @@ def decide(request: DecideRequest, response: Response, db: Session = Depends(get
             status_code=422,
             content={"error": "invalid_request", "message": str(e)}
         )
+    except Exception as e:
+        logger.error(f'decision persistence failed: {str(e)}')
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "persistence_failed",
+                "message": "Failed to persist decision log",
+            },
+        )

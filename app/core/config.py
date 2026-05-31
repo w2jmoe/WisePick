@@ -11,7 +11,7 @@ load_dotenv(_ENV_PATH)
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/wisepick"
     APP_TITLE: str = "WisePick Decision Router API"
-    APP_VERSION: str = "0.1.5"
+    APP_VERSION: str = "0.2.2"
     # Optional YantrikDB cluster health (state-aware routing); empty = disabled
     YANTRIK_DB_URL: str = ""
     YANTRIK_DB_API_KEY: str = ""

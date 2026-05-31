@@ -8,6 +8,16 @@
 
 ---
 
+## Hosted Endpoint
+
+**Default hosted deployment:** `https://api.wishweaver.top`
+
+For most evaluations and pilot integrations, use the hosted endpoint before deploying your own infrastructure. Status: early operator validation.
+
+Self-hosted deployment: see [Deployment & Production Requirements](#deployment--production-requirements--部署与生产环境要求) below.
+
+---
+
 ## Deployment & Production Requirements | 部署与生产环境要求
 
 **Production architecture contract:** Deploy **WPDA** as your product’s **routing decision service** (not a task orchestrator). In production, run the WisePick API in your private containers or cloud environment and ensure the agent runtime can reach it reliably (stable base URL, health checks, persistence).
@@ -33,7 +43,7 @@ Wire [`wisepick/client.py`](./wisepick/client.py) into your Agent completion pat
 ```python
 from wisepick import WisePickClient
 
-wp = WisePickClient(api_url="http://localhost:8000")  # deployed host in prod
+wp = WisePickClient(api_url="https://api.wishweaver.top")  # hosted default; or your self-hosted base URL
 ```
 
 Keep one instance per process (or per session factory). Point `api_url` at your self-hosted WisePick base (no trailing slash required).
@@ -147,7 +157,7 @@ on_tool_finished(ecu, ok=False, latency_ms=300000, err="timeout after 300s")
 
 Skipping feedback disables learning for that decision.
 
-**Closed loop:** `decide` → execute mapped handler → `feedback` → `capability_stats` updates next `decide`.
+**Closed loop:** `decide` → execute mapped handler → `feedback` → `tool_stats` updates next `decide`.
 
 ---
 
@@ -192,6 +202,15 @@ Skipping feedback disables learning for that decision.
 { "error": "error_type", "message": "Human-readable description" }
 ```
 
+| `error` | HTTP | When |
+| --- | --- | --- |
+| `invalid_request` | 422 | Validation / no matching tools (`ValueError` from router) |
+| `persistence_failed` | 500 | Decision log could not be persisted (no ghost `decision_id`) |
+
+```json
+{ "error": "persistence_failed", "message": "Failed to persist decision log" }
+```
+
 ---
 
 ## Environment variables
@@ -202,7 +221,7 @@ See [.env.example](./.env.example) for the full list.
 
 | Variable | Required | Default | Role |
 | --- | --- | --- | --- |
-| `WISEPICK_API_URL` | recommended | `http://localhost:8000` | Base URL for `WisePickClient` / HTTP adapter |
+| `WISEPICK_API_URL` | recommended | `https://api.wishweaver.top` | Base URL for `WisePickClient` / HTTP adapter |
 | `WISEPICK_DECIDE_URL` | optional | `{WISEPICK_API_URL}/v1/decide` | Full decide endpoint override (Hermes-style routers) |
 | `HERMES_WISEPICK_ROUTING` | optional | `1` | `1`/`true` → enable decide + first-completion injection (Hermes integrations) |
 | `WISEPICK_FORCE_TOOL` | optional | — | Test/dry-run: skip HTTP; force tool name (must exist in `tool_capability_map`) |
@@ -214,7 +233,7 @@ Set `WISEPICK_API_URL` in deployment manifests; map `tool_capability_map` from t
 
 | Variable | Required on host | Role |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL / Supabase for decisions and `capability_stats` |
+| `DATABASE_URL` | yes | PostgreSQL / Supabase for decisions, feedback, and `tool_stats` |
 | `YANTRIK_DB_URL` | no | Cluster health plugin for `/v1/decide` score penalty |
 | `YANTRIK_DB_API_KEY` | no | Bearer token for YantrikDB health |
 | `WISEPICK_LANGFUSE_PUBLIC_KEY` | no | Telemetry (`mcp.route_decision.v1`) |
@@ -238,24 +257,22 @@ task → capabilities
 ### Capability scoring | 能力评分
 
 ```text
-score =
-  capability_match       * 0.40  (semantic match)
-  execution_success_rate * 0.20  (historical reliability)
-  efficiency_factor      * 0.20  (avg_latency_ms, cohort-normalized)
-  economy_factor         * 0.10  (avg_token_cost, cohort-normalized)
-  bootstrap_weight       * 0.10  (cold-start prior)
+base_score =
+  capability_match * 0.70
+  + effective_success_rate * 0.20
+  + effective_bootstrap_weight * 0.10
+
+final_score = base_score * efficacy
+
+efficacy = result_quality / (log(max(avg_latency_ms, 100)) * log(max(avg_token_cost, 10)))
 ```
 
-Legacy v0 blend (when ROI dimensions are sparse):
-
-```text
-score = capability_match * 0.70 + execution_success_rate * 0.20 + effective_bootstrap_weight * 0.10
-```
+ROI metrics are read from `tool_stats`. If `capability_match` is 0, `effective_success_rate` is penalized × 0.1. `effective_bootstrap_weight` decays with `feedback_count` (half-life 20).
 
 ### Feedback loop | 反馈闭环
 
 ```text
-decision → execution → feedback → capability_stats → next decision
+decision → execution → feedback → tool_stats → next decision
 ```
 
 ### Components | 核心组件
@@ -325,5 +342,6 @@ Maps ECU → `RoutingEvidence`; attaches `routing_evidence` on outer `Proposal` 
 ```bash
 pip install -r requirements.txt
 # configure DATABASE_URL in .env
+# Existing Supabase/PostgreSQL DB: run scripts/migrate_v0_2_2.sql first (see docs/MIGRATION_v0_2_2.md)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```

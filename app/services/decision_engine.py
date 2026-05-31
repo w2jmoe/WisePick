@@ -513,4 +513,5 @@ def _create_decision_log(db: Session, decision_id: str, request: DecideRequest,
         db.commit()
     except Exception as e:
         rollback_session(db)
-        logger.warning("Failed to create decision log: %s", e)
+        logger.error("Failed to create decision log: %s", e)
+        raise

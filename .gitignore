@@ -2,7 +2,9 @@
 venv/
 .venv/
 __pycache__/
+**/__pycache__/
 *.py[cod]
+*.pyc
 *$py.class
 *.so
 .Python
@@ -32,17 +34,20 @@ MANIFEST
 
 # Testing
 .pytest_cache/
+.mypy_cache/
 .coverage
+coverage/
 htmlcov/
 .tox/
 .nox/
 
 # Environment
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+
+# Node (TypeScript adapters / local tooling)
+node_modules/
 
 # Database
 *.db
@@ -56,9 +61,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
-
-# Python cache
-**/__pycache__/
 
 # Benchmark outputs
 benchmark/reports/*
@@ -84,3 +86,9 @@ migrations/
 # examples
 wisepick_contrast_flowchart.py
 wisepick_contrast_flowchart.png
+
+# SSL / keys (never commit)
+*.pem
+*.key
+*.p12
+*.crt

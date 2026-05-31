@@ -8,6 +8,8 @@
 
 **Product overview:** [README.md](./README.md).
 
+**Default hosted endpoint:** `https://api.wishweaver.top` (early operator validation). Deployment and self-host setup: [INSTALL_FOR_AGENTS.md](./INSTALL_FOR_AGENTS.md).
+
 **Boundary:** WisePick routes and scores; your runtime discovers, maps, executes, enforces policy, holds secrets and session state. WisePick remains agnostic to whether tools are registered via static manifests or dynamic MCP hosts.
 
 **Product (today):** WisePick Decision API (WPDA) — deterministic capability routing and execution feedback via SDK/HTTP ([README_API.md](./README_API.md)). **Vision (future):** Execution Experience Network and collective decision memory across runtimes ([README.md](./README.md#-vision--愿景)).
