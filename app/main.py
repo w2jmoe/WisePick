@@ -157,5 +157,5 @@ def health_check():
     return {
         "status": "ok",
         "service": "wisepick-api",
-        "version": "v0.2.2 - 2026-06-01"
+        "version": "v0.2.3 - 2026-06-01"
     }
