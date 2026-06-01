@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://wisepick.dev/schemas/compliance/aetheris_route_evidence.v1.json",
   "title": "AetherisRouteEvidence",
-  "description": "OxDeAI non-authoritative routing audit artifact produced from WisePick ECU output.",
+  "description": "NON-AUTHORITATIVE OxDeAI audit artifact (issue #122 review surface). Audit metadata only — MUST NOT be read by AuthorizationV1, PEP, or policy engines. Integer-only wire: confidence_bps and cost_estimate_millicents align with adapters/utils.py encoding shared by thymos_adapter.py; route labels here use capability-centric selected + normalized alternatives (NOT OpenThymos provider:capability labels). Locked reference hash: 306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa — see docs/compliance/oxdeai_spec.md §3.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,17 +18,17 @@
     "decision_hash": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "SHA-256 hex digest of the canonical preimage (audit metadata only; not an authorization input)."
+      "description": "SHA-256 hex of the canonical preimage per oxdeai_spec.md §3 (oxdeai_v1). Locked reference vector hash: 306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa. Audit output — never an authorization input."
     },
     "routing_decision_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Optional WisePick /v1/decide decision_id. When present, included in the decision_hash preimage for audit correlation."
+      "description": "Optional WisePick /v1/decide decision_id. When present, serialized in the decision_hash preimage under the legacy key decision_id (not routing_decision_id)."
     },
     "selected": {
       "type": "string",
       "pattern": "^[a-z0-9_]+$",
-      "description": "Normalized selected capability_id (strip + lower)."
+      "description": "Normalized winning capability_id (strip + lower). OxDeAI wire — not the OpenThymos provider:capability route label."
     },
     "alternatives": {
       "type": "array",
@@ -36,13 +36,13 @@
         "type": "string",
         "pattern": "^[a-z0-9_]+$"
       },
-      "description": "Ranked non-primary capability/provider labels (normalized)."
+      "description": "Ranked non-primary labels from trace.top_candidates (normalized capability_id or provider token). OxDeAI wire — not provider:capability."
     },
     "confidence_bps": {
       "type": "integer",
       "minimum": 0,
       "maximum": 10000,
-      "description": "Routing confidence in basis points (integer only)."
+      "description": "Routing confidence in basis points (0–10000). Same integer encoding as thymos_adapter.RoutingEvidence.confidence_bps via confidence_to_basis_points()."
     },
     "reason_codes": {
       "type": "array",
@@ -50,17 +50,18 @@
       "items": {
         "type": "string",
         "enum": ["capability_match", "fallback_routing"]
-      }
+      },
+      "description": "Structured routing rationale. Sorted lexicographically inside the decision_hash preimage."
     },
     "latency_estimate_ms": {
       "type": "integer",
       "minimum": 0,
-      "description": "Non-binding latency estimate in milliseconds (excluded from decision_hash preimage)."
+      "description": "Non-binding latency estimate in milliseconds. Same field name as thymos_adapter; excluded from OxDeAI decision_hash preimage."
     },
     "cost_estimate_millicents": {
       "type": "integer",
       "minimum": 0,
-      "description": "Non-binding cost estimate in USD millicents (1 USD = 100_000; excluded from decision_hash preimage)."
+      "description": "Non-binding cost in USD millicents (1 USD = 100_000). Same field name and encoding as thymos_adapter via usd_to_millicents(); excluded from OxDeAI decision_hash preimage."
     }
   }
 }

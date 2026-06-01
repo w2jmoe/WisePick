@@ -270,19 +270,43 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 
 智选将硬编码与动态发现路线统一于确定性路由层。
 
-
 | Paradigm    | Discovery      | Runtime Pain                                               | WisePick Value                                      |
 | ----------- | -------------- | ---------------------------------------------------------- | --------------------------------------------------- |
 | **Static**  | Manual config  | Brittle scaling, zero runtime flexibility                  | Centralized ECU registry, cleaner code              |
-| **Dynamic** | Auto-discovery | **Tool Anxiety:** Context explosion, loops, hallucinations | **Deterministic Filter:** Cuts 95% noise, 100% lock |
+| **Dynamic** | Auto-discovery | **Tool Anxiety:** Context explosion, loops, hallucinations   | **Deterministic Filter:** Cuts 95% noise, 100% lock   |
 
+### High-Level Architecture | 整体架构概览
+
+<img width="941" height="1672" alt="智选API 0 2 2 架构图 02+" src="https://github.com/user-attachments/assets/99ff4a35-2d6c-42a7-8901-0d1ce0a135df" />
+
+* **Ingress**: External Runtimes 统一请求路由。
+* **Intelligence**: Decision Engine 基于 ROI 动态调度。
+* **Closure**: 执行反馈回流，驱动持续的路由优化。
+
+---
+
+## 🧪 Agent Workflow | Agent 工作流
+
+```mermaid
+graph LR
+    A[Ask Routing] --> B(Receive ECU)
+    B --> C{Map to Local Implementation}
+    C --> D[Execute]
+    D --> E[Send Feedback]
+    E -.->|Updates ROI Models| A
+
+```
+
+WisePick provides decision intelligence and feedback loops—not task execution.
+
+智选提供决策智能与反馈闭环；**不替代**任务执行本身。
+
+---
 
 ## 🔬 ECU Response (with ROI Metrics) | 带有 ROI 指标的 ECU 响应
 
 > **ECU (Executable Capability Unit)**
->
 > A standardized executable capability an agent can route, invoke, and learn from.
->
 > 可执行能力单元：可被路由、调用并通过反馈学习的标准化能力抽象。
 
 ```json
@@ -310,28 +334,12 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
     "reason_codes": ["capability_match"]
   }
 }
+
 ```
 
 WisePick predicts performance before execution to ensure the best ROI.
 
 WisePick 在执行前预测性能，以确保最佳投资回报率 (ROI)。
-
----
-
-## 🧪 Agent Workflow | Agent 工作流
-
-```mermaid
-graph LR
-    A[Ask Routing] --> B(Receive ECU)
-    B --> C{Map to Local Implementation}
-    C --> D[Execute]
-    D --> E[Send Feedback]
-    E -.->|Updates ROI Models| A
-```
-
-WisePick provides decision intelligence and feedback loops—not task execution.
-
-智选提供决策智能与反馈闭环；**不替代**任务执行本身。
 
 ---
 

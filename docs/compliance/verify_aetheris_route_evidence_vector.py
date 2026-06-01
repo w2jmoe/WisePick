@@ -22,6 +22,15 @@ REFERENCE_DECISION_HASH = (
     "306b3c59d4eb15efac1f31cb3dda6454538e442f423a366d950b7008946debaa"
 )
 
+# LOCKED (oxdeai_v1): changing this string requires re-approving issue #122 review artifacts.
+REFERENCE_CANONICAL_PREIMAGE_JSON = (
+    '{"candidate_list":["audio_transcription","tongyi_tingwu"],'
+    '"decision_id":"dec_aetheris_demo_001",'
+    '"reason_codes":["capability_match"],'
+    '"score_bps":7500,'
+    '"selected_capability":"audio_transcription"}'
+)
+
 REFERENCE_VECTOR: dict[str, Any] = {
     "routing_decision_id": "dec_aetheris_demo_001",
     "selected": "audio_transcription",
@@ -98,6 +107,9 @@ def main() -> None:
     preimage = canonical_preimage(REFERENCE_VECTOR)
     canonical = canonical_json_bytes(preimage).decode("utf-8")
 
+    assert canonical == REFERENCE_CANONICAL_PREIMAGE_JSON, (
+        "canonical preimage drift — update oxdeai_spec.md §3.2 and issue #122 artifacts together"
+    )
     assert vector["decision_hash"] == REFERENCE_DECISION_HASH, (
         f"expected {REFERENCE_DECISION_HASH}, got {vector['decision_hash']}"
     )

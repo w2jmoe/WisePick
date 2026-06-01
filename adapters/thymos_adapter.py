@@ -8,7 +8,8 @@ at the **Proposal** envelope — never inside ``ProposalBody`` — so
 RFC: OpenThymos ``docs/rfcs/proposal-contract-v1.md`` (Accepted); provider routing
 metadata via ``routing_evidence`` on ``Proposal``, outside the content-addressed body.
 
-Does not call THYMOS HTTP or the WisePick API.
+Optional HTTP pull for OpenThymos v0.4.3+ ``GET /runs/{id}/routing-outcomes`` via
+``ThymosClient``; WisePick feedback closure via ``ThymosFeedbackConnector``.
 """
 
 from __future__ import annotations
@@ -16,7 +17,10 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-from typing import Any, Mapping, Union
+import urllib.error
+import urllib.parse
+import urllib.request
+from typing import Any, Mapping, Protocol, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -29,8 +33,10 @@ from adapters.utils import (
     normalize_provider,
     usd_to_millicents,
 )
+from app.schemas.decide import DecideResponse
 
 THYMOS_ROUTE_LABEL_SEP = ":"
+THYMOS_ROUTING_OUTCOME_SCHEMA = "wisepick.thymos.routing_outcome.v1"
 
 
 def format_thymos_route_label(provider: str, capability_id: str) -> str:
@@ -40,7 +46,6 @@ def format_thymos_route_label(provider: str, capability_id: str) -> str:
     if not cap or not prov:
         raise ValueError("capability_id and provider are required for THYMOS route label")
     return f"{prov}{THYMOS_ROUTE_LABEL_SEP}{cap}"
-from app.schemas.decide import DecideResponse
 
 
 class FallbackHint(BaseModel):
@@ -100,6 +105,170 @@ class RoutingEvidence(BaseModel):
         if self.selected in self.alternatives:
             raise ValueError("alternatives must not include selected route label")
         return self
+
+
+class RoutingOutcome(BaseModel):
+    """Telemetry-safe THYMOS routing outcome (OpenThymos v0.4.3+ pull surface)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    decision_hash: str = Field(..., min_length=1)
+    selected: str = Field(..., min_length=1)
+    status: str = Field(..., min_length=1)
+    latency_ms: int = Field(..., ge=0)
+
+
+class WisePickFeedbackLike(Protocol):
+    def feedback(
+        self,
+        decision_id: str,
+        success: bool,
+        latency_ms: int,
+        *,
+        user_note: str | None = None,
+    ) -> dict: ...
+
+
+def parse_routing_outcome(raw: Mapping[str, Any]) -> RoutingOutcome:
+    """Parse one ``/routing-outcomes`` record (integer-only, no floats)."""
+    return RoutingOutcome(
+        decision_hash=str(raw["decision_hash"]),
+        selected=str(raw["selected"]),
+        status=str(raw["status"]),
+        latency_ms=int(raw["latency_ms"]),
+    )
+
+
+def routing_outcome_to_feedback(
+    outcome: RoutingOutcome,
+    *,
+    decision_id: str,
+) -> dict[str, Any]:
+    """Map a THYMOS outcome to WisePick ``POST /v1/feedback`` kwargs."""
+    note = json.dumps(
+        {
+            "schema": THYMOS_ROUTING_OUTCOME_SCHEMA,
+            "decision_hash": outcome.decision_hash,
+            "selected": outcome.selected,
+            "status": outcome.status,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return {
+        "decision_id": decision_id,
+        "success": outcome.status == "committed",
+        "latency_ms": outcome.latency_ms,
+        "user_note": note,
+    }
+
+
+class ThymosClient:
+    """Lightweight OpenThymos HTTP client (stdlib ``urllib`` only)."""
+
+    def __init__(self, api_base_url: str, *, timeout: float = 30.0) -> None:
+        self._base = api_base_url.rstrip("/")
+        self._timeout = timeout
+
+    def _get_json(self, path: str) -> dict[str, Any] | None:
+        req = urllib.request.Request(f"{self._base}{path}", method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+            return None
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def fetch_routing_outcomes(self, trajectory_id: str) -> dict[str, Any]:
+        """
+        GET ``/runs/{id_or_trajectory}/routing-outcomes`` (OpenThymos v0.4.3+).
+
+        Returns ``{"outcomes": [{decision_hash, selected, status, latency_ms}, ...]}``.
+        Accepts either a run id or the trajectory hex from ``/routed-submit``.
+        """
+        run_ref = (trajectory_id or "").strip()
+        if not run_ref:
+            return {"outcomes": []}
+        path = f"/runs/{urllib.parse.quote(run_ref, safe='')}/routing-outcomes"
+        data = self._get_json(path)
+        if not data:
+            return {"outcomes": []}
+        raw_outcomes = data.get("outcomes")
+        if not isinstance(raw_outcomes, list):
+            return {"outcomes": []}
+        parsed: list[dict[str, Any]] = []
+        for item in raw_outcomes:
+            if not isinstance(item, dict):
+                continue
+            try:
+                wire = parse_routing_outcome(item).model_dump(mode="json")
+                assert_no_floats(wire)
+                parsed.append(wire)
+            except (KeyError, TypeError, ValueError):
+                continue
+        return {"outcomes": parsed}
+
+
+class ThymosFeedbackConnector:
+    """
+    Join THYMOS routing outcomes to WisePick feedback via ``decision_hash``.
+
+    Register ``decision_hash → decision_id`` when attaching routing evidence so
+    telemetry pulls can close the learning loop without workload leakage.
+    """
+
+    def __init__(
+        self,
+        wisepick: WisePickFeedbackLike,
+        decision_hash_index: Mapping[str, str] | None = None,
+    ) -> None:
+        self._wp = wisepick
+        self._index = {
+            (h or "").strip(): (d or "").strip()
+            for h, d in (decision_hash_index or {}).items()
+            if (h or "").strip() and (d or "").strip()
+        }
+
+    def register_decision(self, decision_hash: str, decision_id: str) -> None:
+        h = (decision_hash or "").strip()
+        d = (decision_id or "").strip()
+        if h and d:
+            self._index[h] = d
+
+    def process_outcomes(self, outcomes_payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+        """Send WisePick feedback for outcomes whose ``decision_hash`` is registered."""
+        raw = outcomes_payload.get("outcomes")
+        if not isinstance(raw, list):
+            return []
+        sent: list[dict[str, Any]] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            try:
+                outcome = parse_routing_outcome(item)
+            except (KeyError, TypeError, ValueError):
+                continue
+            decision_id = self._index.get(outcome.decision_hash)
+            if not decision_id:
+                continue
+            fb = self._wp.feedback(**routing_outcome_to_feedback(outcome, decision_id=decision_id))
+            sent.append(
+                {
+                    "decision_hash": outcome.decision_hash,
+                    "decision_id": decision_id,
+                    "feedback": fb,
+                }
+            )
+        return sent
+
+    def fetch_and_process(self, client: ThymosClient, trajectory_id: str) -> list[dict[str, Any]]:
+        """Pull routing outcomes from THYMOS and forward matched rows to WisePick."""
+        return self.process_outcomes(client.fetch_routing_outcomes(trajectory_id))
 
 
 def compute_routing_decision_hash(
@@ -426,6 +595,49 @@ def _self_test() -> dict[str, Any]:
         assert "ProposalBody" in str(exc)
     else:
         raise AssertionError("expected ValueError for routing_evidence inside body")
+
+    mock_outcome = {
+        "decision_hash": evidence.decision_hash,
+        "selected": evidence.selected,
+        "status": "committed",
+        "latency_ms": 42,
+    }
+    parsed = parse_routing_outcome(mock_outcome)
+    assert parsed.latency_ms == 42
+    assert_no_floats(parsed.model_dump(mode="json"))
+
+    fb_kwargs = routing_outcome_to_feedback(parsed, decision_id=mock_ecu["decision_id"])
+    assert fb_kwargs["success"] is True
+    assert fb_kwargs["latency_ms"] == 42
+    assert mock_ecu["decision_id"] in fb_kwargs["decision_id"]
+
+    class _MockWP:
+        def __init__(self) -> None:
+            self.feedback_calls: list[dict[str, Any]] = []
+
+        def feedback(self, decision_id: str, success: bool, latency_ms: int, *, user_note: str | None = None) -> dict:
+            row = {
+                "decision_id": decision_id,
+                "success": success,
+                "latency_ms": latency_ms,
+                "user_note": user_note,
+            }
+            self.feedback_calls.append(row)
+            return {"ok": True}
+
+    mock_wp = _MockWP()
+    connector = ThymosFeedbackConnector(mock_wp)
+    connector.register_decision(evidence.decision_hash, mock_ecu["decision_id"])
+    sent = connector.process_outcomes({"outcomes": [mock_outcome]})
+    assert len(sent) == 1
+    assert sent[0]["decision_hash"] == evidence.decision_hash
+    assert len(mock_wp.feedback_calls) == 1
+    assert mock_wp.feedback_calls[0]["latency_ms"] == 42
+
+    wire_after = routing_evidence_to_wire(evidence)
+    assert wire_after["confidence_bps"] == 8200
+    assert wire_after["cost_estimate_millicents"] == usd_to_millicents(0.18)
+    assert_no_floats(wire_after)
 
     return attached
 
