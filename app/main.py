@@ -3,7 +3,9 @@ load_dotenv() # 这行代码会强制 Python 寻找并读取当前目录下的 .
 
 from contextlib import asynccontextmanager 
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,7 @@ from app.models.feedback import Feedback  # noqa: F401
 from app.routers import analytics
 from app.routers import decide
 from app.routers import feedback
+from app.services.feedback_validation import feedback_validation_message
 
 SEED_TOOLS = [
     {
@@ -120,6 +123,23 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    if request.url.path == "/v1/feedback":
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "invalid_request",
+                "message": feedback_validation_message(exc.errors()),
+            },
+        )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 app.include_router(decide.router)
 app.include_router(feedback.router)

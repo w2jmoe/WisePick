@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.services.feedback_validation import LATENCY_MS_MAX, LATENCY_MS_MIN
+
 
 class TokenCost(BaseModel):
     """Token usage for ROI aggregation (maps to feedback.token_cost JSON)."""
@@ -24,7 +26,17 @@ class FeedbackRequest(BaseModel):
 
     decision_id: str = Field(..., min_length=1)
     success: bool
-    latency_ms: int = Field(..., ge=0, description="Wall-clock execution duration in milliseconds")
+    latency_ms: int = Field(
+        ...,
+        ge=LATENCY_MS_MIN,
+        le=LATENCY_MS_MAX,
+        description="Wall-clock execution duration in milliseconds (1–86400000)",
+    )
+    tool_key: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description="Optional; when sent must match the decision selected_tool_key",
+    )
     token_cost: Optional[TokenCost] = Field(default=None, description="Optional input/output token counts")
     result_quality: Optional[float] = Field(
         default=None,

@@ -11,6 +11,20 @@ def test_feedback_requires_latency_ms():
         FeedbackRequest(decision_id="dec_x", success=True)
 
 
+def test_feedback_latency_minimum():
+    with pytest.raises(ValidationError):
+        FeedbackRequest(decision_id="dec_x", success=True, latency_ms=0)
+
+
+def test_feedback_latency_maximum():
+    with pytest.raises(ValidationError):
+        FeedbackRequest(
+            decision_id="dec_x",
+            success=True,
+            latency_ms=86_400_001,
+        )
+
+
 def test_feedback_accepts_roi_fields():
     req = FeedbackRequest(
         decision_id="dec_x",
@@ -26,3 +40,8 @@ def test_feedback_accepts_roi_fields():
 def test_result_quality_bounds():
     with pytest.raises(ValidationError):
         FeedbackRequest(decision_id="dec_x", success=True, latency_ms=1, result_quality=1.5)
+
+
+def test_token_cost_negative():
+    with pytest.raises(ValidationError):
+        TokenCost(input=-1, output=10)

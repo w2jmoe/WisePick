@@ -13,6 +13,7 @@ from sqlalchemy import text
 from app.core.database import get_db, rollback_session
 from app.core.logger import get_logger
 from app.schemas.feedback import FeedbackRequest
+from app.services.feedback_validation import validate_tool_key_for_decision
 from app.telemetry.langfuse_emitter import emit_execution_feedback_async
 
 router = APIRouter(prefix="/v1", tags=["feedback"])
@@ -37,10 +38,27 @@ def record_feedback(
         logger.error(f"decision not found: {request.decision_id}")
         return JSONResponse(
             status_code=404,
-            content={"error": "not_found", "message": "Decision not found"},
+            content={"error": "not_found", "message": "decision_id not found"},
         )
 
-    tool_key = decision["selected_tool_key"]
+    selected_tool_key = decision["selected_tool_key"]
+    tool_key_error = validate_tool_key_for_decision(
+        request.tool_key,
+        selected_tool_key,
+    )
+    if tool_key_error:
+        logger.error(
+            "tool_key mismatch: decision_id=%s client_tool_key=%s selected=%s",
+            request.decision_id,
+            request.tool_key,
+            selected_tool_key,
+        )
+        return JSONResponse(
+            status_code=400,
+            content={"error": "invalid_request", "message": tool_key_error},
+        )
+
+    tool_key = selected_tool_key
     token_cost_dict = (
         request.token_cost.model_dump(exclude_none=True) if request.token_cost else None
     )
