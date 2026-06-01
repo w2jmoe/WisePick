@@ -8,8 +8,9 @@ at the **Proposal** envelope — never inside ``ProposalBody`` — so
 RFC: OpenThymos ``docs/rfcs/proposal-contract-v1.md`` (Accepted); provider routing
 metadata via ``routing_evidence`` on ``Proposal``, outside the content-addressed body.
 
-Optional HTTP pull for OpenThymos v0.4.3+ ``GET /runs/{id}/routing-outcomes`` via
-``ThymosClient``; WisePick feedback closure via ``ThymosFeedbackConnector``.
+Optional HTTP pull for OpenThymos ``GET /runs/{id}/routing-outcomes`` via ``ThymosClient``
+(pinned to **open-thymos v0.4.4** — response is a top-level JSON array); WisePick feedback
+closure via ``ThymosFeedbackConnector``.
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ from adapters.utils import (
     usd_to_millicents,
 )
 from app.schemas.decide import DecideResponse
+
+# Integration contract: open-thymos v0.4.4 (routing-outcomes returns a JSON array).
+OPEN_THYMOS_INTEGRATION_VERSION = "v0.4.4"
 
 THYMOS_ROUTE_LABEL_SEP = ":"
 THYMOS_ROUTING_OUTCOME_SCHEMA = "wisepick.thymos.routing_outcome.v1"
@@ -108,7 +112,7 @@ class RoutingEvidence(BaseModel):
 
 
 class RoutingOutcome(BaseModel):
-    """Telemetry-safe THYMOS routing outcome (OpenThymos v0.4.3+ pull surface)."""
+    """Telemetry-safe THYMOS routing outcome (OpenThymos v0.4.4 pull surface)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -164,14 +168,50 @@ def routing_outcome_to_feedback(
     }
 
 
+def _normalize_routing_outcomes_body(data: Any) -> list[Any]:
+    """
+    Normalize ``GET /runs/{id}/routing-outcomes`` JSON body.
+
+    open-thymos v0.4.4 returns a top-level array. v0.4.3 wrapped records in
+    ``{"outcomes": [...]}`` — still accepted for local/dev compatibility.
+    """
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        wrapped = data.get("outcomes")
+        if isinstance(wrapped, list):
+            return wrapped
+    return []
+
+
+def _wire_routing_outcomes(raw_items: list[Any]) -> list[dict[str, Any]]:
+    """Parse raw outcome objects into integer-only wire dicts."""
+    parsed: list[dict[str, Any]] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            wire = parse_routing_outcome(item).model_dump(mode="json")
+            assert_no_floats(wire)
+            parsed.append(wire)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return parsed
+
+
 class ThymosClient:
-    """Lightweight OpenThymos HTTP client (stdlib ``urllib`` only)."""
+    """
+    Lightweight OpenThymos HTTP client (stdlib ``urllib`` only).
+
+    Depends on open-thymos **v0.4.4** for ``GET /runs/{id}/routing-outcomes``,
+    which returns a telemetry-safe JSON **array** of routing outcome records.
+    """
 
     def __init__(self, api_base_url: str, *, timeout: float = 30.0) -> None:
         self._base = api_base_url.rstrip("/")
         self._timeout = timeout
 
-    def _get_json(self, path: str) -> dict[str, Any] | None:
+    def _get_json(self, path: str) -> Any:
         req = urllib.request.Request(f"{self._base}{path}", method="GET")
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
@@ -179,16 +219,18 @@ class ThymosClient:
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
             return None
         try:
-            data = json.loads(raw)
+            return json.loads(raw)
         except json.JSONDecodeError:
             return None
-        return data if isinstance(data, dict) else None
 
     def fetch_routing_outcomes(self, trajectory_id: str) -> dict[str, Any]:
         """
-        GET ``/runs/{id_or_trajectory}/routing-outcomes`` (OpenThymos v0.4.3+).
+        GET ``/runs/{id_or_trajectory}/routing-outcomes`` (open-thymos v0.4.4).
 
-        Returns ``{"outcomes": [{decision_hash, selected, status, latency_ms}, ...]}``.
+        v0.4.4 response body is a JSON array:
+        ``[{decision_hash, selected, status, latency_ms}, ...]``.
+
+        Returns a normalized envelope ``{"outcomes": [...]}`` for local processors.
         Accepts either a run id or the trajectory hex from ``/routed-submit``.
         """
         run_ref = (trajectory_id or "").strip()
@@ -196,22 +238,9 @@ class ThymosClient:
             return {"outcomes": []}
         path = f"/runs/{urllib.parse.quote(run_ref, safe='')}/routing-outcomes"
         data = self._get_json(path)
-        if not data:
+        if data is None:
             return {"outcomes": []}
-        raw_outcomes = data.get("outcomes")
-        if not isinstance(raw_outcomes, list):
-            return {"outcomes": []}
-        parsed: list[dict[str, Any]] = []
-        for item in raw_outcomes:
-            if not isinstance(item, dict):
-                continue
-            try:
-                wire = parse_routing_outcome(item).model_dump(mode="json")
-                assert_no_floats(wire)
-                parsed.append(wire)
-            except (KeyError, TypeError, ValueError):
-                continue
-        return {"outcomes": parsed}
+        return {"outcomes": _wire_routing_outcomes(_normalize_routing_outcomes_body(data))}
 
 
 class ThymosFeedbackConnector:
@@ -638,6 +667,18 @@ def _self_test() -> dict[str, Any]:
     assert wire_after["confidence_bps"] == 8200
     assert wire_after["cost_estimate_millicents"] == usd_to_millicents(0.18)
     assert_no_floats(wire_after)
+
+    v044_array = [
+        {
+            "decision_hash": evidence.decision_hash,
+            "selected": evidence.selected,
+            "status": "committed",
+            "latency_ms": 99,
+        }
+    ]
+    wired = _wire_routing_outcomes(_normalize_routing_outcomes_body(v044_array))
+    assert len(wired) == 1
+    assert wired[0]["latency_ms"] == 99
 
     return attached
 
