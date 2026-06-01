@@ -166,8 +166,13 @@ Skipping feedback disables learning for that decision.
 | Method | Path | Role |
 | --- | --- | --- |
 | GET | `/health` | Liveness |
+| GET | `/v1/analytics/summary` | Operator usage snapshot (totals, closure rate, pooled ROI) |
+| GET | `/v1/analytics/providers` | Per-provider stats from `tool_stats` |
+| GET | `/v1/analytics/timeline` | Daily decide/feedback counts (UTC) |
 | POST | `/v1/decide` | Task → ECU |
 | POST | `/v1/feedback` | Outcome → stats |
+
+**Operator usage (read-only):** `curl -s http://localhost:8000/v1/analytics/summary` — no Supabase SQL required for basic adoption and Shared Feedback Pool validation.
 
 ### POST `/v1/decide`
 

@@ -12,6 +12,7 @@ from app.core.database import Base, SessionLocal, engine
 from app.models.tool_spec import ApiToolSpec  # noqa: F401 用于 Base 注册模型
 from app.models.decision import Decision  # noqa: F401
 from app.models.feedback import Feedback  # noqa: F401
+from app.routers import analytics
 from app.routers import decide
 from app.routers import feedback
 
@@ -122,6 +123,7 @@ app = FastAPI(
 
 app.include_router(decide.router)
 app.include_router(feedback.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
@@ -135,5 +137,5 @@ def health_check():
     return {
         "status": "ok",
         "service": "wisepick-api",
-        "version": "v0"
+        "version": "v0.2.2 - 2026-06-01"
     }

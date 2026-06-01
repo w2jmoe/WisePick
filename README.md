@@ -277,7 +277,7 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 
 ### High-Level Architecture | 整体架构概览
 
-<img width="941" height="1672" alt="智选API 0 2 2 架构图 02+" src="https://github.com/user-attachments/assets/99ff4a35-2d6c-42a7-8901-0d1ce0a135df" />
+<img width="941" height="1672" alt="02 智选API 0 2 2 架构图" src="https://github.com/user-attachments/assets/7a0e9e73-1514-4f84-9a29-d47f2cfd257d" />
 
 * **Ingress**: External Runtimes 统一请求路由。
 * **Intelligence**: Decision Engine 基于 ROI 动态调度。
