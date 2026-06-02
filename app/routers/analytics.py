@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.logger import get_logger
 from app.schemas.analytics import (
+    AnalyticsDashboardResponse,
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
     ProviderStatsResponse,
 )
 from app.services.analytics_service import (
+    get_analytics_dashboard,
     get_analytics_summary,
     get_analytics_timeline,
     get_provider_stats,
@@ -33,6 +35,22 @@ def analytics_summary(db: Session = Depends(get_db)) -> AnalyticsSummaryResponse
             content={
                 "error": "internal_error",
                 "message": "Failed to load analytics summary",
+            },
+        )
+
+
+@router.get("/dashboard", response_model=AnalyticsDashboardResponse)
+def analytics_dashboard(db: Session = Depends(get_db)) -> AnalyticsDashboardResponse:
+    """Operator dashboard: summary metrics plus last-7-day volume."""
+    try:
+        return get_analytics_dashboard(db)
+    except Exception as exc:
+        logger.error("GET /v1/analytics/dashboard failed: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "internal_error",
+                "message": "Failed to load analytics dashboard",
             },
         )
 

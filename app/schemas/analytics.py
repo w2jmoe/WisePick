@@ -47,6 +47,17 @@ class AnalyticsSummaryResponse(BaseModel):
     )
 
 
+class AnalyticsDashboardResponse(AnalyticsSummaryResponse):
+    decisions_last_7d: int = Field(
+        default=0,
+        description="Routing decisions recorded in the last 7 days (UTC rolling window)",
+    )
+    feedback_last_7d: int = Field(
+        default=0,
+        description="Feedback submissions recorded in the last 7 days (UTC rolling window)",
+    )
+
+
 class ProviderStatsResponse(BaseModel):
     tool_key: str
     name: str

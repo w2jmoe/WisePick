@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.database import rollback_session
 from app.core.logger import get_logger
 from app.schemas.analytics import (
+    AnalyticsDashboardResponse,
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
     ProviderStatsResponse,
@@ -118,6 +119,38 @@ def get_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
     except Exception as exc:
         rollback_session(db)
         logger.error("analytics summary failed: %s", exc)
+        raise
+
+
+def _count_since_days(db: Session, table: str, days: int) -> int:
+    if table not in {"decisions", "feedback"}:
+        raise ValueError(f"unsupported analytics table: {table}")
+    return _scalar_int(
+        db.execute(
+            text(
+                f"""
+                SELECT COUNT(*)
+                FROM {table}
+                WHERE created_at >= NOW() - make_interval(days => :days)
+                """
+            ),
+            {"days": days},
+        ).fetchone()
+    )
+
+
+def get_analytics_dashboard(db: Session) -> AnalyticsDashboardResponse:
+    """Operator dashboard: summary metrics plus recent 7-day volume."""
+    try:
+        summary = get_analytics_summary(db)
+        return AnalyticsDashboardResponse(
+            **summary.model_dump(),
+            decisions_last_7d=_count_since_days(db, "decisions", 7),
+            feedback_last_7d=_count_since_days(db, "feedback", 7),
+        )
+    except Exception as exc:
+        rollback_session(db)
+        logger.error("analytics dashboard failed: %s", exc)
         raise
 
 
