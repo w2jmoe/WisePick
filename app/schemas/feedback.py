@@ -45,3 +45,16 @@ class FeedbackRequest(BaseModel):
         description="Optional execution quality score (0.0–1.0)",
     )
     user_note: str = Field(default="", description="Optional free-text note (errors, context)")
+    runtime_name: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Optional runtime self-label for usage analytics only",
+    )
+
+    @field_validator("runtime_name", mode="before")
+    @classmethod
+    def _normalize_runtime_name(cls, v: object) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        stripped = str(v).strip()
+        return stripped or None

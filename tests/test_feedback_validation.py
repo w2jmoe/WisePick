@@ -78,6 +78,46 @@ def test_successful_feedback(
     call_kwargs = mock_insert.call_args.kwargs
     assert call_kwargs["tool_key"] == "feishu_minutes"
     assert call_kwargs["latency_ms"] == 1200
+    assert call_kwargs["runtime_name"] is None
+
+
+@patch("app.routers.feedback._insert_feedback", return_value=True)
+@patch("app.routers.feedback._get_decision")
+@patch("app.routers.feedback.emit_execution_feedback_async")
+def test_feedback_with_runtime_name(
+    _emit: MagicMock,
+    mock_get_decision: MagicMock,
+    mock_insert: MagicMock,
+    client: TestClient,
+) -> None:
+    mock_get_decision.return_value = {
+        "selected_tool_key": "feishu_minutes",
+        "context": {},
+    }
+    response = client.post(
+        "/v1/feedback",
+        json=_valid_body(runtime_name="yantrikdb-hermes"),
+    )
+    assert response.status_code == 200
+    assert mock_insert.call_args.kwargs["runtime_name"] == "yantrikdb-hermes"
+
+
+@patch("app.routers.feedback._insert_feedback", return_value=True)
+@patch("app.routers.feedback._get_decision")
+@patch("app.routers.feedback.emit_execution_feedback_async")
+def test_feedback_without_runtime_name(
+    _emit: MagicMock,
+    mock_get_decision: MagicMock,
+    mock_insert: MagicMock,
+    client: TestClient,
+) -> None:
+    mock_get_decision.return_value = {
+        "selected_tool_key": "feishu_minutes",
+        "context": {},
+    }
+    response = client.post("/v1/feedback", json=_valid_body())
+    assert response.status_code == 200
+    assert mock_insert.call_args.kwargs["runtime_name"] is None
 
 
 @patch("app.routers.feedback._get_decision", return_value=None)

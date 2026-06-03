@@ -167,12 +167,39 @@ Skipping feedback disables learning for that decision.
 | --- | --- | --- |
 | GET | `/health` | Liveness |
 | GET | `/v1/analytics/summary` | Operator usage snapshot (totals, closure rate, pooled ROI) |
+| GET | `/v1/analytics/dashboard` | **Operator entry point** — summary + 7-day volume + top runtime |
 | GET | `/v1/analytics/providers` | Per-provider stats from `tool_stats` |
+| GET | `/v1/analytics/runtimes` | Per-runtime stats from self-reported `runtime_name` |
 | GET | `/v1/analytics/timeline` | Daily decide/feedback counts (UTC) |
 | POST | `/v1/decide` | Task → ECU |
 | POST | `/v1/feedback` | Outcome → stats |
 
-**Operator usage (read-only):** `curl -s http://localhost:8000/v1/analytics/summary` — no Supabase SQL required for basic adoption and Shared Feedback Pool validation.
+**Operator usage (read-only):** `curl -s http://localhost:8000/v1/analytics/dashboard` — single operator entry point for adoption, closure rate, provider/runtime leaders, and recent volume.
+
+### GET `/v1/analytics/dashboard`
+
+```json
+{
+  "decisions_total": 156,
+  "feedback_total": 121,
+  "closure_rate": 0.7756,
+  "active_providers": 7,
+  "active_runtimes": 3,
+  "avg_success_rate": 0.89,
+  "avg_latency_ms": 1532.0,
+  "avg_token_cost": 1100.25,
+  "avg_result_quality": 0.91,
+  "top_provider": "chatgpt",
+  "top_provider_decisions": 42,
+  "top_provider_feedback_count": 38,
+  "top_runtime": "yantrikdb-hermes",
+  "top_runtime_feedback_count": 84,
+  "decisions_last_7d": 23,
+  "feedback_last_7d": 18
+}
+```
+
+When `feedback.runtime_name` is not migrated yet, `active_runtimes` is `0`, `top_runtime` is `null`, and `top_runtime_feedback_count` is `0`.
 
 ### POST `/v1/decide`
 
@@ -200,6 +227,27 @@ Skipping feedback disables learning for that decision.
 ```
 
 `latency_ms` is required. Use `token_cost` and `result_quality` for ROI aggregates (`avg_token_cost`, `avg_result_quality`); do not embed them in `user_note`.
+
+### Runtime Attribution (Optional)
+
+Runtimes may self-label feedback for usage analytics only:
+
+```json
+{
+  "decision_id": "dec_abc123def4567890",
+  "success": true,
+  "latency_ms": 1200,
+  "runtime_name": "yantrikdb-hermes"
+}
+```
+
+This field is **optional**. Existing feedback requests without `runtime_name` continue to work unchanged.
+
+- Used only for usage analytics (`GET /v1/analytics/runtimes`, `active_runtimes` in summary).
+- No authentication required.
+- No impact on routing, billing, or quotas.
+
+Apply `scripts/migrate_runtime_name.sql` on Supabase/PostgreSQL before persisting or querying runtime attribution.
 
 ### Errors
 

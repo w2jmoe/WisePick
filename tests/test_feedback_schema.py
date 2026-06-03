@@ -45,3 +45,18 @@ def test_result_quality_bounds():
 def test_token_cost_negative():
     with pytest.raises(ValidationError):
         TokenCost(input=-1, output=10)
+
+
+def test_runtime_name_optional():
+    req = FeedbackRequest(decision_id="dec_x", success=True, latency_ms=1)
+    assert req.runtime_name is None
+
+
+def test_runtime_name_accepts_value():
+    req = FeedbackRequest(
+        decision_id="dec_x",
+        success=True,
+        latency_ms=1,
+        runtime_name="yantrikdb-hermes",
+    )
+    assert req.runtime_name == "yantrikdb-hermes"

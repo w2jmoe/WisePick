@@ -11,12 +11,14 @@ from app.schemas.analytics import (
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
     ProviderStatsResponse,
+    RuntimeStatsResponse,
 )
 from app.services.analytics_service import (
     get_analytics_dashboard,
     get_analytics_summary,
     get_analytics_timeline,
     get_provider_stats,
+    get_runtime_stats,
 )
 
 router = APIRouter(prefix="/v1/analytics", tags=["analytics"])
@@ -67,6 +69,22 @@ def analytics_providers(db: Session = Depends(get_db)) -> list[ProviderStatsResp
             content={
                 "error": "internal_error",
                 "message": "Failed to load provider analytics",
+            },
+        )
+
+
+@router.get("/runtimes", response_model=list[RuntimeStatsResponse])
+def analytics_runtimes(db: Session = Depends(get_db)) -> list[RuntimeStatsResponse]:
+    """Per-runtime feedback stats from self-reported runtime_name."""
+    try:
+        return get_runtime_stats(db)
+    except Exception as exc:
+        logger.error("GET /v1/analytics/runtimes failed: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "internal_error",
+                "message": "Failed to load runtime analytics",
             },
         )
 

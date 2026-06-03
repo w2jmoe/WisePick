@@ -17,8 +17,10 @@ from app.schemas.analytics import (
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
     ProviderStatsResponse,
+    RuntimeStatsResponse,
     TimelineDayResponse,
 )
+from app.services.schema_compat import feedback_has_runtime_name
 
 logger = get_logger("analytics_service")
 
@@ -57,6 +59,8 @@ def get_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
                 )
             ).fetchone()
         )
+
+        active_runtimes = _count_active_runtimes(db)
 
         roi_row = db.execute(
             text(
@@ -115,11 +119,87 @@ def get_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
             top_provider=top_provider,
             top_provider_decisions=top_provider_decisions,
             top_provider_feedback_count=top_provider_feedback_count,
+            active_runtimes=active_runtimes,
         )
     except Exception as exc:
         rollback_session(db)
         logger.error("analytics summary failed: %s", exc)
         raise
+
+
+def _count_active_runtimes(db: Session) -> int:
+    if not feedback_has_runtime_name():
+        return 0
+    return _scalar_int(
+        db.execute(
+            text(
+                """
+                SELECT COUNT(DISTINCT runtime_name)
+                FROM feedback
+                WHERE runtime_name IS NOT NULL
+                  AND BTRIM(runtime_name) <> ''
+                """
+            )
+        ).fetchone()
+    )
+
+
+def get_runtime_stats(db: Session) -> list[RuntimeStatsResponse]:
+    """Per-runtime feedback aggregates (self-reported runtime_name)."""
+    if not feedback_has_runtime_name():
+        return []
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    runtime_name,
+                    COUNT(*) AS feedback_count,
+                    ROUND(
+                        AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END)::numeric,
+                        4
+                    ) AS success_rate
+                FROM feedback
+                WHERE runtime_name IS NOT NULL
+                  AND BTRIM(runtime_name) <> ''
+                GROUP BY runtime_name
+                ORDER BY feedback_count DESC, runtime_name ASC
+                """
+            )
+        ).fetchall()
+        return [
+            RuntimeStatsResponse(
+                runtime_name=str(row[0]),
+                feedback_count=int(row[1] or 0),
+                success_rate=_scalar_float((row[2],)),
+            )
+            for row in rows
+        ]
+    except Exception as exc:
+        rollback_session(db)
+        logger.error("analytics runtimes failed: %s", exc)
+        raise
+
+
+def _get_top_runtime(db: Session) -> tuple[Optional[str], int]:
+    if not feedback_has_runtime_name():
+        return None, 0
+    row = db.execute(
+        text(
+            """
+            SELECT runtime_name, COUNT(*) AS feedback_count
+            FROM feedback
+            WHERE runtime_name IS NOT NULL
+              AND BTRIM(runtime_name) <> ''
+            GROUP BY runtime_name
+            ORDER BY feedback_count DESC, runtime_name ASC
+            LIMIT 1
+            """
+        )
+    ).fetchone()
+    if not row:
+        return None, 0
+    return str(row[0]), int(row[1] or 0)
 
 
 def _count_since_days(db: Session, table: str, days: int) -> int:
@@ -143,10 +223,13 @@ def get_analytics_dashboard(db: Session) -> AnalyticsDashboardResponse:
     """Operator dashboard: summary metrics plus recent 7-day volume."""
     try:
         summary = get_analytics_summary(db)
+        top_runtime, top_runtime_feedback_count = _get_top_runtime(db)
         return AnalyticsDashboardResponse(
             **summary.model_dump(),
             decisions_last_7d=_count_since_days(db, "decisions", 7),
             feedback_last_7d=_count_since_days(db, "feedback", 7),
+            top_runtime=top_runtime,
+            top_runtime_feedback_count=top_runtime_feedback_count,
         )
     except Exception as exc:
         rollback_session(db)

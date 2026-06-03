@@ -22,6 +22,7 @@ class Feedback(Base):
     token_cost: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     result_quality: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     user_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    runtime_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     trace: Mapped[dict] = mapped_column(JSON, nullable=False, default={})
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

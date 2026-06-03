@@ -279,9 +279,13 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 
 <img width="941" height="1672" alt="02 智选API 0 2 2 架构图" src="https://github.com/user-attachments/assets/7a0e9e73-1514-4f84-9a29-d47f2cfd257d" />
 
-* **Ingress**: External Runtimes 统一请求路由。
-* **Intelligence**: Decision Engine 基于 ROI 动态调度。
-* **Closure**: 执行反馈回流，驱动持续的路由优化。
+* **Ingress:** Unified entry point for external runtimes and agents.
+* **Intelligence:** Dynamic capability routing based on ROI and execution feedback.
+* **Closure:** Execution feedback flows back into WisePick to continuously improve routing quality.
+
+* **请求入口：** 外部 Runtime 与 Agent 的统一接入入口。
+* **决策引擎：** 基于 ROI 与执行反馈的动态能力路由决策。
+* **反馈闭环：** 执行反馈持续回流至 WisePick，驱动路由质量不断优化。
 
 ---
 

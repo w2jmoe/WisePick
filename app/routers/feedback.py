@@ -14,6 +14,7 @@ from app.core.database import get_db, rollback_session
 from app.core.logger import get_logger
 from app.schemas.feedback import FeedbackRequest
 from app.services.feedback_validation import validate_tool_key_for_decision
+from app.services.schema_compat import feedback_has_runtime_name
 from app.telemetry.langfuse_emitter import emit_execution_feedback_async
 
 router = APIRouter(prefix="/v1", tags=["feedback"])
@@ -73,6 +74,7 @@ def record_feedback(
             token_cost=token_cost_dict,
             result_quality=request.result_quality,
             user_note=request.user_note,
+            runtime_name=request.runtime_name,
         )
         logger.info(
             f"decision_id={request.decision_id} tool={tool_key} success={request.success}"
@@ -132,12 +134,38 @@ def _insert_feedback(
     token_cost: Optional[dict[str, int]],
     result_quality: Optional[float],
     user_note: str,
+    runtime_name: Optional[str] = None,
 ) -> bool:
     """Insert feedback record with ROI fields. Returns True if a new row was inserted."""
     import json
 
-    result = db.execute(
-        text("""
+    params: dict[str, Any] = {
+        "decision_id": decision_id,
+        "tool_key": tool_key,
+        "outcome": "completed",
+        "success": success,
+        "latency_ms": latency_ms,
+        "token_cost": json.dumps(token_cost) if token_cost else None,
+        "result_quality": result_quality,
+        "user_note": user_note or "",
+        "trace": "{}",
+        "created_at": datetime.utcnow(),
+    }
+
+    if feedback_has_runtime_name():
+        params["runtime_name"] = runtime_name
+        insert_sql = """
+            INSERT INTO feedback
+            (decision_id, tool_key, outcome, success, latency_ms, token_cost,
+             result_quality, user_note, runtime_name, trace, created_at)
+            VALUES
+            (:decision_id, :tool_key, :outcome, :success, :latency_ms,
+             :token_cost, :result_quality, :user_note, :runtime_name, :trace, :created_at)
+            ON CONFLICT (decision_id) DO NOTHING
+            RETURNING id
+        """
+    else:
+        insert_sql = """
             INSERT INTO feedback
             (decision_id, tool_key, outcome, success, latency_ms, token_cost,
              result_quality, user_note, trace, created_at)
@@ -146,20 +174,9 @@ def _insert_feedback(
              :token_cost, :result_quality, :user_note, :trace, :created_at)
             ON CONFLICT (decision_id) DO NOTHING
             RETURNING id
-        """),
-        {
-            "decision_id": decision_id,
-            "tool_key": tool_key,
-            "outcome": "completed",
-            "success": success,
-            "latency_ms": latency_ms,
-            "token_cost": json.dumps(token_cost) if token_cost else None,
-            "result_quality": result_quality,
-            "user_note": user_note or "",
-            "trace": "{}",
-            "created_at": datetime.utcnow(),
-        },
-    )
+        """
+
+    result = db.execute(text(insert_sql), params)
     inserted = result.fetchone() is not None
     db.commit()
     return inserted

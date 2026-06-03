@@ -13,8 +13,17 @@ from app.schemas.analytics import (
     AnalyticsDashboardResponse,
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
+    RuntimeStatsResponse,
 )
 from app.services import analytics_service
+
+
+@pytest.fixture(autouse=True)
+def enable_runtime_name_column(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.analytics_service.feedback_has_runtime_name",
+        lambda: True,
+    )
 
 
 def _mock_db(*, fetchone_results=None, fetchall_results=None) -> MagicMock:
@@ -44,6 +53,7 @@ def test_summary_empty_database() -> None:
             (0,),
             (0,),
             (0,),
+            (0,),
             (None, None, None, None),
             None,
         ]
@@ -53,6 +63,7 @@ def test_summary_empty_database() -> None:
     assert summary.feedback_total == 0
     assert summary.closure_rate == 0.0
     assert summary.active_providers == 0
+    assert summary.active_runtimes == 0
     assert summary.avg_success_rate is None
     assert summary.top_provider is None
     assert summary.top_provider_decisions == 0
@@ -79,7 +90,12 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
             feedback_total=0,
             closure_rate=0.0,
             active_providers=0,
+            active_runtimes=0,
         ),
+    )
+    monkeypatch.setattr(
+        "app.routers.analytics.get_runtime_stats",
+        lambda _db: [],
     )
     monkeypatch.setattr(
         "app.routers.analytics.get_provider_stats",
@@ -96,8 +112,11 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
             feedback_total=0,
             closure_rate=0.0,
             active_providers=0,
+            active_runtimes=0,
             decisions_last_7d=0,
             feedback_last_7d=0,
+            top_runtime=None,
+            top_runtime_feedback_count=0,
         ),
     )
     return TestClient(app)
@@ -109,6 +128,13 @@ def test_summary_endpoint_returns_200(client: TestClient) -> None:
     body = response.json()
     assert body["decisions_total"] == 0
     assert body["closure_rate"] == 0.0
+    assert body["active_runtimes"] == 0
+
+
+def test_runtimes_endpoint_returns_200(client: TestClient) -> None:
+    response = client.get("/v1/analytics/runtimes")
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_providers_endpoint_returns_200(client: TestClient) -> None:
@@ -130,9 +156,64 @@ def test_dashboard_endpoint_returns_200(client: TestClient) -> None:
     assert body["decisions_total"] == 0
     assert body["decisions_last_7d"] == 0
     assert body["feedback_last_7d"] == 0
+    assert body["top_runtime"] is None
+    assert body["top_runtime_feedback_count"] == 0
 
 
 def test_dashboard_empty_database() -> None:
+    db = _mock_db(
+        fetchone_results=[
+            (0,),
+            (0,),
+            (0,),
+            (0,),
+            (None, None, None, None),
+            None,
+            None,
+            (0,),
+            (0,),
+        ]
+    )
+    dashboard = analytics_service.get_analytics_dashboard(db)
+    assert dashboard.decisions_total == 0
+    assert dashboard.feedback_total == 0
+    assert dashboard.decisions_last_7d == 0
+    assert dashboard.feedback_last_7d == 0
+    assert dashboard.top_runtime is None
+    assert dashboard.top_runtime_feedback_count == 0
+
+
+def test_dashboard_with_sample_data() -> None:
+    db = _mock_db(
+        fetchone_results=[
+            (12,),
+            (9,),
+            (3,),
+            (2,),
+            (0.8889, 450.5, 1200.25, 0.91),
+            ("feishu_minutes", 7, 6),
+            ("yantrikdb-hermes", 84),
+            (5,),
+            (4,),
+        ]
+    )
+    dashboard = analytics_service.get_analytics_dashboard(db)
+    assert dashboard.decisions_total == 12
+    assert dashboard.feedback_total == 9
+    assert dashboard.closure_rate == 0.75
+    assert dashboard.top_provider == "feishu_minutes"
+    assert dashboard.active_runtimes == 2
+    assert dashboard.decisions_last_7d == 5
+    assert dashboard.feedback_last_7d == 4
+    assert dashboard.top_runtime == "yantrikdb-hermes"
+    assert dashboard.top_runtime_feedback_count == 84
+
+
+def test_dashboard_without_runtime_column(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.analytics_service.feedback_has_runtime_name",
+        lambda: False,
+    )
     db = _mock_db(
         fetchone_results=[
             (0,),
@@ -145,31 +226,9 @@ def test_dashboard_empty_database() -> None:
         ]
     )
     dashboard = analytics_service.get_analytics_dashboard(db)
-    assert dashboard.decisions_total == 0
-    assert dashboard.feedback_total == 0
-    assert dashboard.decisions_last_7d == 0
-    assert dashboard.feedback_last_7d == 0
-
-
-def test_dashboard_with_sample_data() -> None:
-    db = _mock_db(
-        fetchone_results=[
-            (12,),
-            (9,),
-            (3,),
-            (0.8889, 450.5, 1200.25, 0.91),
-            ("feishu_minutes", 7, 6),
-            (5,),
-            (4,),
-        ]
-    )
-    dashboard = analytics_service.get_analytics_dashboard(db)
-    assert dashboard.decisions_total == 12
-    assert dashboard.feedback_total == 9
-    assert dashboard.closure_rate == 0.75
-    assert dashboard.top_provider == "feishu_minutes"
-    assert dashboard.decisions_last_7d == 5
-    assert dashboard.feedback_last_7d == 4
+    assert dashboard.active_runtimes == 0
+    assert dashboard.top_runtime is None
+    assert dashboard.top_runtime_feedback_count == 0
 
 
 def test_summary_with_sample_data() -> None:
@@ -178,6 +237,7 @@ def test_summary_with_sample_data() -> None:
             (12,),
             (9,),
             (3,),
+            (2,),
             (0.8889, 450.5, 1200.25, 0.91),
             ("feishu_minutes", 7, 6),
         ]
@@ -188,6 +248,43 @@ def test_summary_with_sample_data() -> None:
     assert summary.closure_rate == 0.75
     assert summary.top_provider == "feishu_minutes"
     assert summary.top_provider_decisions == 7
+    assert summary.active_runtimes == 2
+
+
+def test_runtime_stats_sorted() -> None:
+    db = _mock_db(
+        fetchall_results=[
+            [
+                ("yantrikdb-hermes", 42, 0.91),
+                ("safeagent", 18, 0.88),
+            ]
+        ]
+    )
+    runtimes = analytics_service.get_runtime_stats(db)
+    assert len(runtimes) == 2
+    assert runtimes[0].runtime_name == "yantrikdb-hermes"
+    assert runtimes[0].feedback_count == 42
+    assert runtimes[1].runtime_name == "safeagent"
+
+
+def test_runtime_stats_without_column(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.analytics_service.feedback_has_runtime_name",
+        lambda: False,
+    )
+    db = _mock_db()
+    assert analytics_service.get_runtime_stats(db) == []
+    summary_db = _mock_db(
+        fetchone_results=[
+            (0,),
+            (0,),
+            (0,),
+            (None, None, None, None),
+            None,
+        ]
+    )
+    summary = analytics_service.get_analytics_summary(summary_db)
+    assert summary.active_runtimes == 0
 
 
 def test_providers_maps_tool_stats_rows() -> None:

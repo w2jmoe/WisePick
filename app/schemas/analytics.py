@@ -45,6 +45,16 @@ class AnalyticsSummaryResponse(BaseModel):
         default=0,
         description="Feedback count for top_provider",
     )
+    active_runtimes: int = Field(
+        default=0,
+        description="Distinct runtime_name values with at least one feedback row",
+    )
+
+
+class RuntimeStatsResponse(BaseModel):
+    runtime_name: str
+    feedback_count: int
+    success_rate: Optional[float] = None
 
 
 class AnalyticsDashboardResponse(AnalyticsSummaryResponse):
@@ -55,6 +65,14 @@ class AnalyticsDashboardResponse(AnalyticsSummaryResponse):
     feedback_last_7d: int = Field(
         default=0,
         description="Feedback submissions recorded in the last 7 days (UTC rolling window)",
+    )
+    top_runtime: Optional[str] = Field(
+        default=None,
+        description="Runtime (runtime_name) with the most feedback submissions",
+    )
+    top_runtime_feedback_count: int = Field(
+        default=0,
+        description="Feedback count for top_runtime",
     )
 
 
