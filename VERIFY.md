@@ -1,5 +1,5 @@
 # VERIFY — WisePick v0.2.2
-
+ 
 Verification checklist for **Hosted Shared Feedback Pool MVP**.
 
 Environment: PostgreSQL/Supabase with v0.2.2 migration applied, API v0.2.2 running, `DATABASE_URL` configured.

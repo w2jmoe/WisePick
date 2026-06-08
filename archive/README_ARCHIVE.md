@@ -1,5 +1,5 @@
 # WisePick API Archive
-
+ 
 This directory preserves the historical evolution of WisePick API, documenting the journey from initial concept to the current v0 implementation. 
 
 ## Purpose
