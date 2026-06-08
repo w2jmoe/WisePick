@@ -23,6 +23,9 @@ from app.adapters.yantrik_adapter import get_cluster_health, health_score_multip
 
 logger = get_logger("decision_engine")
 
+NO_MATCH_REASON = "No matching capability found"
+FALLBACK_UNKNOWN_TOOL_KEY = "fallback_unknown"
+
 DEFAULT_TOOL_METRICS: dict[str, float | int] = {
     "success_rate": 0.5,
     "avg_latency_ms": 1000.0,
@@ -214,6 +217,69 @@ def _get_tool_metrics(db: Session, tool_key: str) -> dict[str, Any]:
         return metrics
 
 
+def _should_reject_no_match(
+    target_capabilities: list[str],
+    scored_tools: list[ScoredTool],
+) -> bool:
+    """True when bootstrap rules found nothing or no registered tool matches."""
+    if not target_capabilities:
+        return True
+    return all(
+        (st.score_breakdown or {}).get("capability_match", 0) == 0
+        for st in scored_tools
+    )
+
+
+def _build_no_match_explain(
+    target_capabilities: list[str],
+    scored_tools: list[ScoredTool],
+) -> dict[str, Any]:
+    return {
+        "no_match": True,
+        "reason_code": "no_matching_capability",
+        "reason": NO_MATCH_REASON,
+        "target_capabilities": target_capabilities,
+        "candidate_count": len(scored_tools),
+        "scoring_formula": (
+            "Routing rejected: target_capabilities empty or all capability_match=0; "
+            "runtime must fallback without forced tool_choice"
+        ),
+    }
+
+
+def _build_no_match_trace(
+    request: DecideRequest,
+    scored_tools: list[ScoredTool],
+    started_at: float,
+    yantrik_meta: dict | None = None,
+) -> dict[str, Any]:
+    latency_ms = int((time.perf_counter() - started_at) * 1000)
+    trace: dict[str, Any] = {
+        "timestamp": time.time(),
+        "latency_ms": latency_ms,
+        "no_match": True,
+        "top_candidates": [
+            {
+                "capability_id": (
+                    tool.matched_capabilities[0]
+                    if tool.matched_capabilities
+                    else "general_capability"
+                ),
+                "provider": tool.tool.tool_key,
+                "score": tool.score,
+                "base_score": tool.base_score,
+                "efficacy": tool.efficacy,
+                "capability_match": (tool.score_breakdown or {}).get("capability_match", 0),
+                "rank": i + 1,
+            }
+            for i, tool in enumerate(scored_tools[:5])
+        ],
+    }
+    if yantrik_meta is not None:
+        trace["yantrik_cluster"] = yantrik_meta
+    return trace
+
+
 def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
     """
     Main decision function for WisePick API v0.
@@ -267,7 +333,7 @@ def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
         scored_tools.append(
             ScoredTool(
                 tool=tool,
-                score=round(score, 4),
+                score=score,
                 matched_capabilities=matched_caps,
                 base_score=breakdown["base_score"],
                 efficacy=breakdown["efficacy"],
@@ -276,11 +342,34 @@ def run_decision(request: DecideRequest, db: Session) -> DecideResponse:
             )
         )
     
-    # Sort by score descending
-    scored_tools.sort(key=lambda x: x.score, reverse=True)
+    # Sort by score descending (full float precision; tie-break by tool_key for determinism)
+    scored_tools.sort(key=lambda x: (-x.score, x.tool.tool_key))
     
     if not scored_tools:
         raise ValueError("No tools matched the task requirements")
+
+    if _should_reject_no_match(target_capabilities, scored_tools):
+        logger.info(
+            "no matching capability: task=%r target_capabilities=%s",
+            request.task[:80],
+            target_capabilities,
+        )
+        decision_id = f"dec_{uuid.uuid4().hex[:16]}"
+        explain = _build_no_match_explain(target_capabilities, scored_tools)
+        trace = _build_no_match_trace(request, scored_tools, started_at, yantrik_meta)
+        _create_no_match_decision_log(db, decision_id, request, explain, trace)
+        return DecideResponse(
+            decision_id=decision_id,
+            capability_id="",
+            execution_type="api",
+            provider="",
+            callable=False,
+            tool_key="",
+            reason=NO_MATCH_REASON,
+            confidence=0.0,
+            explain=explain,
+            trace=trace,
+        )
     
     # Select top tool
     top_tool = scored_tools[0]
@@ -479,6 +568,45 @@ def _build_trace_payload(
     if yantrik_meta is not None:
         trace["yantrik_cluster"] = yantrik_meta
     return trace
+
+
+def _create_no_match_decision_log(
+    db: Session,
+    decision_id: str,
+    request: DecideRequest,
+    explain: dict,
+    trace: dict,
+) -> None:
+    """Persist a no-match decision anchor for feedback and analytics."""
+    try:
+        db.execute(
+            text("""
+                INSERT INTO decisions
+                (decision_id, task, context, constraints, selected_tool_key,
+                 reason, confidence, explain, trace, bootstrap_version, created_at)
+                VALUES
+                (:decision_id, :task, :context, :constraints, :selected_tool_key,
+                 :reason, :confidence, :explain, :trace, :bootstrap_version, :created_at)
+            """),
+            {
+                "decision_id": decision_id,
+                "task": request.task,
+                "context": json.dumps(request.context or {}),
+                "constraints": json.dumps(request.constraints or {}),
+                "selected_tool_key": FALLBACK_UNKNOWN_TOOL_KEY,
+                "reason": NO_MATCH_REASON,
+                "confidence": 0.0,
+                "explain": json.dumps(explain),
+                "trace": json.dumps(trace),
+                "bootstrap_version": BOOTSTRAP_VERSION,
+                "created_at": datetime.utcnow(),
+            },
+        )
+        db.commit()
+    except Exception as e:
+        rollback_session(db)
+        logger.error("Failed to create no-match decision log: %s", e)
+        raise
 
 
 def _create_decision_log(db: Session, decision_id: str, request: DecideRequest, 

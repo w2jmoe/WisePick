@@ -132,12 +132,12 @@ Reset `api_call_count = 0` (and drop cached `ecu`) on new user intent or explici
 
 ### Step 5 — Feedback on the execution hook
 
-After your tool/MCP handler finishes (success or failure), call `feedback` with the `decision_id` from the turn’s ECU.
+After your tool/MCP handler finishes (success or failure), call `feedback` with the `decision_id` from the turn’s ECU. If the runtime executed a **different** tool than WisePick recommended, pass **`actual_tool_used`** so ROI accrues to the correct handler.
 
 ```python
-def on_tool_finished(ecu: dict, *, ok: bool, err: str | None = None):
+def on_tool_finished(ecu: dict, *, ok: bool, latency_ms: int, actual_tool: str | None = None, err: str | None = None):
     did = ecu.get("decision_id")
-    if not did:
+    if not did or ecu.get("callable") is False:
         return
     wp.feedback(
         did,
@@ -146,6 +146,7 @@ def on_tool_finished(ecu: dict, *, ok: bool, err: str | None = None):
         error_message=err,
         token_usage={"input": 1200, "output": 450},
         result_quality=0.92 if ok else None,
+        actual_tool_used=actual_tool,
     )
 
 # success path (after local execute)
@@ -161,6 +162,44 @@ Skipping feedback disables learning for that decision.
 
 ---
 
+## 🔄 Decision Feedback Loop
+
+WisePick learns from actual runtime execution, not only from routing decisions.
+
+A complete integration should follow:
+
+Decision
+↓
+Execute
+↓
+Feedback
+
+Runtime requirements:
+
+- Call `/v1/decide` before execution.
+- Persist the returned `decision_id`.
+- After execution, call `/v1/feedback`.
+- Include:
+  - `decision_id`
+  - `success`
+  - `latency_ms`
+- Recommended:
+  - `runtime_name`
+  - `actual_tool_used`
+
+When `callable=false`, the runtime may execute its own fallback tool.
+
+Feedback should still be submitted using the original `decision_id`.
+
+WisePick will associate:
+
+- Recommended tool → decision record
+- Actual executed tool → runtime observation record
+
+This enables real-world ROI learning.
+
+---
+
 ## HTTP Surface (reference)
 
 | Method | Path | Role |
@@ -171,6 +210,7 @@ Skipping feedback disables learning for that decision.
 | GET | `/v1/analytics/providers` | Per-provider stats from `tool_stats` |
 | GET | `/v1/analytics/runtimes` | Per-runtime stats from self-reported `runtime_name` |
 | GET | `/v1/analytics/timeline` | Daily decide/feedback counts (UTC) |
+| GET | `/v1/analytics/attribution` | Recommended vs `actual_tool_used` feedback breakdown |
 | POST | `/v1/decide` | Task → ECU |
 | POST | `/v1/feedback` | Outcome → stats |
 
@@ -213,6 +253,8 @@ When `feedback.runtime_name` is not migrated yet, `active_runtimes` is `0`, `top
 
 **ECU fields (integrate against these):** `decision_id`, `capability_id`, `provider`, `execution_type` (`api` | `mcp` | `function_call`), `callable`, `confidence`, `reason`, `explain`, `trace`. Legacy `tool_key` mirrors `provider`.
 
+When **`callable` is `false`**, WisePick found no matching capability in the registry. **`provider`**, **`tool_key`**, and **`capability_id` are empty strings**; **`reason`** is `"No matching capability found"`; **`explain.no_match`** is `true`. **Do not** force `tool_choice` — let your runtime fallback. No row is written to `decisions` for no-match responses (no `decision_id` for feedback on that path unless you replan and decide again).
+
 ### POST `/v1/feedback`
 
 ```json
@@ -222,11 +264,14 @@ When `feedback.runtime_name` is not migrated yet, `active_runtimes` is `0`, `top
   "latency_ms": 1200,
   "token_cost": { "input": 1200, "output": 450 },
   "result_quality": 0.92,
+  "actual_tool_used": "browser_navigate",
   "user_note": "optional free-text error or context"
 }
 ```
 
 `latency_ms` is required. Use `token_cost` and `result_quality` for ROI aggregates (`avg_token_cost`, `avg_result_quality`); do not embed them in `user_note`.
+
+**`tool_key` (request body, optional):** when sent, must match the decision’s recommended `selected_tool_key` (audit). **`actual_tool_used` (optional):** the tool/MCP your runtime **actually executed**. When set, **`tool_stats` ROI metrics** (`success_rate`, `avg_latency_ms`, etc.) attribute to **`actual_tool_used`**, not the recommended provider. Omit for backward-compatible behavior (ROI stays on the recommended tool).
 
 ### Runtime Attribution (Optional)
 
@@ -248,6 +293,8 @@ This field is **optional**. Existing feedback requests without `runtime_name` co
 - No impact on routing, billing, or quotas.
 
 Apply `scripts/migrate_runtime_name.sql` on Supabase/PostgreSQL before persisting or querying runtime attribution.
+
+Apply `scripts/migrate_actual_tool_used.sql` before persisting or querying `actual_tool_used` and the updated `tool_stats` view.
 
 ### Errors
 

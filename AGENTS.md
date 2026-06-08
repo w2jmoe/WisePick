@@ -43,7 +43,7 @@ HTTP paths remain `v0` (`/v1/decide`, `/v1/feedback`). **v1** denotes the capabi
 | `capability_id` | string | yes | **What** work to perform—stable semantic type (see below) |
 | `provider` | string | yes | **Which** implementation satisfies that capability for this decision |
 | `execution_type` | enum | yes | **How** the runtime should invoke locally (see below) |
-| `callable` | boolean | yes | `false` → no assumed direct invoke; replan/enrich, do not tool-spray |
+| `callable` | boolean | yes | `false` → no assumed direct invoke; **runtime fallback** (empty `provider` / `capability_id`); replan/enrich, do not tool-spray |
 | `confidence` | number | yes | Router score (match + stats + bootstrap); not calibrated probability |
 | `reason` | string | yes | Human-readable routing explanation |
 | `explain` | object | yes | Audit/scoring detail |
@@ -81,6 +81,7 @@ WisePick does not perform the invocation; the value only selects which executor 
 | `latency_ms` | integer | yes | Wall-clock execution duration (ms), `>= 0` |
 | `token_cost` | object | no | `{ "input": int, "output": int }` — token ROI; aggregated as `avg_token_cost` |
 | `result_quality` | number | no | `0.0`–`1.0` — subjective or automated quality signal |
+| `actual_tool_used` | string | no | Tool/MCP **actually executed**; when set, `tool_stats` ROI attributes here instead of recommended `tool_key` |
 | `user_note` | string | no | Free-text only (errors, context); do not embed structured ROI here |
 
 ### Closed loop (state machine)
@@ -258,10 +259,10 @@ Adapter wiring (modules, types): [README_API.md](./README_API.md#runtime-adapter
 1. intent(user_task, optional context/constraints)
 2. POST /v1/decide
 3. parse ECU: decision_id, capability_id, provider, execution_type, callable, confidence
-4. if not callable → replan / ask / enrich context → goto 2 (do not tool-spray)
+4. if not callable → **runtime fallback** (no forced tool); optionally replan / enrich context → goto 2 (do not tool-spray)
 5. map (capability_id, provider, execution_type) → local handler
 6. execute handler(task, context) with runtime idempotency key
-7. POST /v1/feedback with decision_id, outcome, latency_ms, optional token_cost / result_quality
+7. POST /v1/feedback with decision_id, outcome, latency_ms, optional token_cost / result_quality / actual_tool_used
 8. continue session or goto 1 with updated state
 ```
 

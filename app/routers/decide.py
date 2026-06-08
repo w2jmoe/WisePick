@@ -25,7 +25,7 @@ def decide(request: DecideRequest, response: Response, db: Session = Depends(get
         logger.info(f'routed capability={out.capability_id} provider={out.provider} confidence={out.confidence:.2f} latency={latency_ms}ms')
         
         response.headers["X-Decision-ID"] = out.decision_id
-        response.headers["X-Observability-Stored"] = "api_decision_logs"
+        response.headers["X-Observability-Stored"] = "decisions"
         print(f"[DEBUG] decide: calling emit_route_decision_async decision_id={out.decision_id}")
         emit_route_decision_async(request, out)
         return out

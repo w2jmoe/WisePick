@@ -50,10 +50,15 @@ class FeedbackRequest(BaseModel):
         max_length=100,
         description="Optional runtime self-label for usage analytics only",
     )
+    actual_tool_used: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Optional; tool/MCP name actually executed (ROI attributed here when set)",
+    )
 
-    @field_validator("runtime_name", mode="before")
+    @field_validator("runtime_name", "actual_tool_used", mode="before")
     @classmethod
-    def _normalize_runtime_name(cls, v: object) -> Optional[str]:
+    def _normalize_optional_str(cls, v: object) -> Optional[str]:
         if v is None or v == "":
             return None
         stripped = str(v).strip()

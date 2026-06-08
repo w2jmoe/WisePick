@@ -56,12 +56,16 @@ class WisePickClient:
         error_message: str | None = None,
         token_usage: dict | None = None,
         result_quality: float | None = None,
+        actual_tool_used: str | None = None,
     ) -> dict:
         """POST /v1/feedback with structured ROI fields aligned to FeedbackRequest.
 
         Reporting latency_ms, token_cost (input/output), and result_quality feeds
         tool_stats aggregates (success_rate, avg_latency_ms, avg_token_cost) so future
         decide calls can rank providers by real execution cost and quality—not guesswork.
+
+        When actual_tool_used is set, ROI is attributed to that tool instead of the
+        recommended provider from the decide ECU.
         """
         body: Dict[str, Any] = {
             "decision_id": decision_id,
@@ -77,4 +81,6 @@ class WisePickClient:
                 body["token_cost"] = tc
         if result_quality is not None:
             body["result_quality"] = result_quality
+        if actual_tool_used:
+            body["actual_tool_used"] = actual_tool_used.strip()
         return self._post("/v1/feedback", body) or {}

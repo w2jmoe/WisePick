@@ -65,6 +65,15 @@ SEED_TOOLS = [
         "bootstrap_weight": 0.70,
         "metadata": '{"provider": "github", "bootstrap": true}',
     },
+    {
+        "tool_key": "fallback_unknown",
+        "name": "Fallback Unknown",
+        "description": "System placeholder for no-match decide routes; not routable",
+        "capabilities": "",
+        "enabled": False,
+        "bootstrap_weight": 0.0,
+        "metadata": '{"system": true, "no_match_anchor": true}',
+    },
 ]
 
 
@@ -157,5 +166,5 @@ def health_check():
     return {
         "status": "ok",
         "service": "wisepick-api",
-        "version": "v0.2.3 - 2026-06-01"
+        "version": "v0.2.4 - 2026-06-08"
     }

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.logger import get_logger
 from app.schemas.analytics import (
+    AnalyticsAttributionResponse,
     AnalyticsDashboardResponse,
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
@@ -19,6 +20,7 @@ from app.services.analytics_service import (
     get_analytics_timeline,
     get_provider_stats,
     get_runtime_stats,
+    get_tool_attribution,
 )
 
 router = APIRouter(prefix="/v1/analytics", tags=["analytics"])
@@ -101,5 +103,21 @@ def analytics_timeline(db: Session = Depends(get_db)) -> AnalyticsTimelineRespon
             content={
                 "error": "internal_error",
                 "message": "Failed to load analytics timeline",
+            },
+        )
+
+
+@router.get("/attribution", response_model=AnalyticsAttributionResponse)
+def analytics_attribution(db: Session = Depends(get_db)) -> AnalyticsAttributionResponse:
+    """Recommended tool vs actual_tool_used feedback breakdown."""
+    try:
+        return get_tool_attribution(db)
+    except Exception as exc:
+        logger.error("GET /v1/analytics/attribution failed: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "internal_error",
+                "message": "Failed to load tool attribution analytics",
             },
         )

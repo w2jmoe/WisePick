@@ -12,12 +12,21 @@ class DecideRequest(BaseModel):
 class DecideResponse(BaseModel):
     decision_id: str
     # Capability routing fields (new semantic layer)
-    capability_id: str = Field(..., description="Executable capability type (e.g., audio_transcription, image_generation)")
+    capability_id: str = Field(
+        default="",
+        description="Executable capability type; empty when callable=false",
+    )
     execution_type: str = Field(default="api", description="Execution mechanism: api, mcp, function_call")
-    provider: str = Field(..., description="Specific provider implementation (e.g., feishu_minutes, openai)")
+    provider: str = Field(
+        default="",
+        description="Specific provider implementation; empty when callable=false",
+    )
     callable: bool = Field(default=True, description="Whether this capability can be directly executed")
     # Legacy field (maintained for backward compatibility)
-    tool_key: str = Field(..., description="[Legacy] Same as provider, maintained for backward compatibility")
+    tool_key: str = Field(
+        default="",
+        description="[Legacy] Same as provider; empty when callable=false",
+    )
     reason: str
     confidence: float
     explain: dict

@@ -96,3 +96,25 @@ class TimelineDayResponse(BaseModel):
 
 class AnalyticsTimelineResponse(BaseModel):
     days: list[TimelineDayResponse]
+
+
+class ToolAttributionResponse(BaseModel):
+    recommended_tool: str = Field(..., description="tool_key from the routed decision (feedback.tool_key)")
+    actual_tool_used: str = Field(
+        ...,
+        description="Tool that executed; equals recommended_tool when actual_tool_used was omitted",
+    )
+    feedback_count: int
+    success_rate: Optional[float] = None
+    is_mismatch: bool = Field(
+        ...,
+        description="True when actual_tool_used differs from recommended_tool",
+    )
+
+
+class AnalyticsAttributionResponse(BaseModel):
+    rows: list[ToolAttributionResponse]
+    mismatch_total: int = Field(
+        ...,
+        description="Feedback rows where actual_tool_used differs from recommended_tool",
+    )

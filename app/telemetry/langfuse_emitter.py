@@ -370,6 +370,7 @@ def build_execution_feedback_payload(
     token_cost: dict[str, Any] | None = None,
     result_quality: float | None = None,
     decision_context: dict[str, Any] | None = None,
+    actual_tool_used: str | None = None,
 ) -> dict[str, Any]:
     ctx = decision_context if isinstance(decision_context, dict) else {}
     trace_id = _extract_id(ctx, _CONTEXT_TRACE_KEYS) or decision_id
@@ -380,6 +381,8 @@ def build_execution_feedback_payload(
         "latency_ms": int(latency_ms),
         "tool_key": tool_key,
     }
+    if actual_tool_used:
+        args["actual_tool_used"] = actual_tool_used
     if token_cost:
         args["token_cost"] = token_cost
     if result_quality is not None:
@@ -391,6 +394,8 @@ def build_execution_feedback_payload(
         "success": bool(success),
         "tool_key": tool_key,
     }
+    if actual_tool_used:
+        meta_payload["actual_tool_used"] = actual_tool_used
     if session_id:
         meta_payload["session_id"] = session_id
 
@@ -412,6 +417,7 @@ def emit_execution_feedback_async(
     token_cost: dict[str, Any] | None = None,
     result_quality: float | None = None,
     decision_context: dict[str, Any] | None = None,
+    actual_tool_used: str | None = None,
 ) -> None:
     emitter = get_langfuse_emitter()
     if not emitter.enabled:
@@ -424,5 +430,6 @@ def emit_execution_feedback_async(
         token_cost=token_cost,
         result_quality=result_quality,
         decision_context=decision_context,
+        actual_tool_used=actual_tool_used,
     )
     _executor.submit(emitter.emit_execution_feedback, contract)

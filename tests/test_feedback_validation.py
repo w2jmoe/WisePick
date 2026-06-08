@@ -120,6 +120,28 @@ def test_feedback_without_runtime_name(
     assert mock_insert.call_args.kwargs["runtime_name"] is None
 
 
+@patch("app.routers.feedback._insert_feedback", return_value=True)
+@patch("app.routers.feedback._get_decision")
+@patch("app.routers.feedback.emit_execution_feedback_async")
+def test_feedback_with_actual_tool_used(
+    mock_emit: MagicMock,
+    mock_get_decision: MagicMock,
+    mock_insert: MagicMock,
+    client: TestClient,
+) -> None:
+    mock_get_decision.return_value = {
+        "selected_tool_key": "feishu_minutes",
+        "context": {},
+    }
+    response = client.post(
+        "/v1/feedback",
+        json=_valid_body(actual_tool_used="browser_navigate"),
+    )
+    assert response.status_code == 200
+    assert mock_insert.call_args.kwargs["actual_tool_used"] == "browser_navigate"
+    assert mock_emit.call_args.kwargs["actual_tool_used"] == "browser_navigate"
+
+
 @patch("app.routers.feedback._get_decision", return_value=None)
 def test_decision_id_not_found(mock_get_decision: MagicMock, client: TestClient) -> None:
     response = client.post("/v1/feedback", json=_valid_body(decision_id="dec_missing"))

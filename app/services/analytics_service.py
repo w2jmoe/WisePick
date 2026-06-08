@@ -13,14 +13,16 @@ from sqlalchemy.orm import Session
 from app.core.database import rollback_session
 from app.core.logger import get_logger
 from app.schemas.analytics import (
+    AnalyticsAttributionResponse,
     AnalyticsDashboardResponse,
     AnalyticsSummaryResponse,
     AnalyticsTimelineResponse,
     ProviderStatsResponse,
     RuntimeStatsResponse,
     TimelineDayResponse,
+    ToolAttributionResponse,
 )
-from app.services.schema_compat import feedback_has_runtime_name
+from app.services.schema_compat import feedback_has_actual_tool_used, feedback_has_runtime_name
 
 logger = get_logger("analytics_service")
 
@@ -330,4 +332,58 @@ def get_analytics_timeline(db: Session) -> AnalyticsTimelineResponse:
     except Exception as exc:
         rollback_session(db)
         logger.error("analytics timeline failed: %s", exc)
+        raise
+
+
+def get_tool_attribution(db: Session) -> AnalyticsAttributionResponse:
+    """Recommended vs actual tool feedback breakdown from feedback rows."""
+    if not feedback_has_actual_tool_used():
+        return AnalyticsAttributionResponse(rows=[], mismatch_total=0)
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    f.tool_key AS recommended_tool,
+                    COALESCE(NULLIF(BTRIM(f.actual_tool_used), ''), f.tool_key) AS actual_tool_used,
+                    COUNT(*) AS feedback_count,
+                    ROUND(
+                        AVG(CASE WHEN f.success THEN 1.0 ELSE 0.0 END)::numeric,
+                        4
+                    ) AS success_rate
+                FROM feedback f
+                GROUP BY 1, 2
+                ORDER BY feedback_count DESC, recommended_tool ASC, actual_tool_used ASC
+                """
+            )
+        ).fetchall()
+        mismatch_total = _scalar_int(
+            db.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM feedback f
+                    WHERE f.actual_tool_used IS NOT NULL
+                      AND BTRIM(f.actual_tool_used) <> ''
+                      AND f.actual_tool_used <> f.tool_key
+                    """
+                )
+            ).fetchone()
+        )
+        return AnalyticsAttributionResponse(
+            rows=[
+                ToolAttributionResponse(
+                    recommended_tool=str(row[0]),
+                    actual_tool_used=str(row[1]),
+                    feedback_count=int(row[2] or 0),
+                    success_rate=_scalar_float((row[3],)),
+                    is_mismatch=str(row[0]) != str(row[1]),
+                )
+                for row in rows
+            ],
+            mismatch_total=mismatch_total,
+        )
+    except Exception as exc:
+        rollback_session(db)
+        logger.error("analytics attribution failed: %s", exc)
         raise

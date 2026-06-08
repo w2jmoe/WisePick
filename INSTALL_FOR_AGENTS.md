@@ -73,6 +73,10 @@ Execute **before** or during a maintenance window, **before** relying on shared 
 
 Do **not** skip migration on existing databases that still use legacy `tools`-driven `tool_stats`.
 
+### 2b. Migration — `actual_tool_used` (recommended for accurate ROI)
+
+After v0.2.2, run `scripts/migrate_actual_tool_used.sql` in Supabase SQL Editor when runtimes may execute a different tool than WisePick recommended. Rebuilds `tool_stats` to attribute feedback ROI to `COALESCE(actual_tool_used, tool_key)`.
+
 ---
 
 ## 3. Install and start
@@ -136,6 +140,81 @@ SELECT tool_key, feedback_count, success_rate
 FROM tool_stats
 WHERE feedback_count > 0;
 ```
+
+---
+
+## Runtime Integration Contract
+
+A Runtime should implement three integration points:
+
+### 1. Decision
+
+Before execution:
+
+POST /v1/decide
+
+Store:
+
+- decision_id
+- callable
+- capability_id
+
+### 2. Execution
+
+If callable=true:
+
+- optionally enforce tool_choice
+
+If callable=false:
+
+- runtime may use its own fallback strategy
+
+### 3. Feedback
+
+After the first executed tool:
+
+POST /v1/feedback
+
+Required:
+
+- decision_id
+- success
+- latency_ms
+
+Recommended:
+
+- runtime_name
+- actual_tool_used
+
+Example:
+
+```json
+{
+  "decision_id": "dec_xxx",
+  "success": true,
+  "latency_ms": 2400,
+  "runtime_name": "hermes",
+  "actual_tool_used": "browser_navigate"
+}
+```
+
+---
+
+## Why actual_tool_used matters
+
+WisePick records:
+
+- Recommended ECU
+- Actual executed tool
+
+This allows the Shared Feedback Pool to learn:
+
+- which ECU was recommended
+- which tool was actually used
+- execution success rate
+- latency trends
+
+Even when the runtime chooses its own internal tool.
 
 ---
 

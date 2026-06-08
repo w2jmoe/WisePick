@@ -53,17 +53,18 @@ WisePick cuts tool searching, retry loops, latency, and cost by reusing executio
 
 ## 📘 Contents | 目录
 
-| Core Sections                                                               | 核心章节      |
-| --------------------------------------------------------------------------- | --------- |
-| [🚀 Getting Started](#-getting-started--开始接入)                               | 开始接入      |
-| [⚡ Why Integrate WisePick](#-why-integrate-wisepick--为什么接入智选)               | 为什么接入智选   |
-| [📜 Performance & Cost Benchmarks](#-performance--cost-benchmarks--性能与成本报告) | 性能与成本报告   |
-| [🧠 How It Works](#-how-it-works--工作原理)                                     | 工作原理      |
-| [🏗️ Architectural Paradigm](#%EF%B8%8F-architectural-paradigm--架构范式演进)     | 架构范式演进    |
-| [🧪 Agent Workflow](#-agent-workflow--agent-工作流)                            | Agent 工作流 |
-| [🔮 Vision](#-vision--愿景)                                                   | 愿景        |
-| [🗺️ Roadmap](#%EF%B8%8F-roadmap--路线图)                                      | 路线图       |
-| [🤗 Feedback](#-feedback--反馈)                                               | 反馈        |
+| Core Sections | 核心章节 |
+| :--- | :--- |
+| [🚀 Getting Started](#-getting-started--开始接入) | 开始接入 |
+| [⚡ Why Integrate WisePick](#-why-integrate-wisepick--为什么接入智选) | 为什么接入智选 |
+| [📜 Performance & Cost Benchmarks](#-performance--cost-benchmarks--性能与成本报告) | 性能与成本报告 |
+| [🧠 How It Works](#-how-it-works--工作原理) | 工作原理 |
+| [🏗️ Architectural Paradigm](#%EF%B8%8F-architectural-paradigm--架构范式演进) | 架构范式演进 |
+| [🤝 Integrations & Standards](#-integrations--standards--集成与标准) | 集成与标准 |
+| [🧪 Agent Workflow](#-agent-workflow--agent-工作流) | Agent 工作流 |
+| [🔮 Vision](#-vision--愿景) | 愿景 |
+| [🗺️ Roadmap](#%EF%B8%8F-roadmap--路线图) | 路线图 |
+| [🤗 Feedback](#-feedback--反馈) | 反馈 |                                           | 反馈        |
 
 ---
 
@@ -286,6 +287,24 @@ WisePick unifies both hard-coded and dynamic tool discovery under a deterministi
 * **请求入口：** 外部 Runtime 与 Agent 的统一接入入口。
 * **决策引擎：** 基于 ROI 与执行反馈的动态能力路由决策。
 * **反馈闭环：** 执行反馈持续回流至 WisePick，驱动路由质量不断优化。
+
+---
+
+## 🤝 Integrations & Standards | 集成与标准
+
+WisePick embraces established standards to ensure compatibility and durability across the agent ecosystem.
+
+智选遵循行业标准，以确保在 Agent 生态系统中的兼容性与持久性。
+
+| Standard | Implementation | Purpose |
+| :--- | :--- | :--- |
+| **Observability** | `mcp.route_decision.v1` | Standardized routing traces via **[langfuse-mcp](https://github.com/avivsinai/langfuse-mcp)**. |
+| **Durable Recovery** | `RoutingAdvisor Evidence Contract` | Reliable execution proofs via **[Aetheris](https://github.com/Colin4k1024/Aetheris)**. |
+
+| 标准 | 实现方案 | 作用 |
+| :--- | :--- | :--- |
+| **可观测性** | `mcp.route_decision.v1` | 通过 **[langfuse-mcp](https://github.com/avivsinai/langfuse-mcp)** 实现标准化路由追踪。 |
+| **持久化恢复** | `RoutingAdvisor Evidence Contract` | 通过 **[Aetheris](https://github.com/Colin4k1024/Aetheris)** 实现可靠的执行证据契约。 |
 
 ---
 
