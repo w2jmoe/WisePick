@@ -2,9 +2,14 @@
 
 > **Docs:** [Overview](./README.md) | [Integration & SDK](./README_API.md) | [Agent Protocol](./AGENTS.md)
 
-**WisePick Decision API (WPDA)** is a stateless capability routing / decision layer: `POST /v1/decide` → ECU → your runtime executes → `POST /v1/feedback`. It does not run tools or own orchestration.
+**WisePick Decision API (WPDA)** is a stateless capability routing / decision layer:
 
-**Agent protocol & runtime behavior:** [AGENTS.md](./AGENTS.md) only. **Product overview:** [README.md](./README.md).
+`POST /v1/decide` → ECU → your runtime executes → `POST /v1/feedback`
+
+It does not run tools or own orchestration.
+
+**Agent protocol & runtime behavior:** [AGENTS.md](./AGENTS.md) only.  
+**Product overview:** [README.md](./README.md).
 
 ---
 
@@ -12,23 +17,23 @@
 
 **Default hosted deployment:** `https://api.wishweaver.top`
 
-For most evaluations and pilot integrations, use the hosted endpoint before deploying your own infrastructure. Status: early operator validation.
+For most evaluations and pilot integrations, use the hosted endpoint before deploying your own infrastructure.
 
-Self-hosted deployment: see [Deployment & Production Requirements](#deployment--production-requirements--部署与生产环境要求) below.
+Self-hosted deployment: see [Deployment & Production Requirements](#deployment--production-requirements--部署与生产环境要求).
 
 ---
 
 ## Deployment & Production Requirements | 部署与生产环境要求
 
-**Production architecture contract:** Deploy **WPDA** as your product’s **routing decision service** (not a task orchestrator). In production, run the WisePick API in your private containers or cloud environment and ensure the agent runtime can reach it reliably (stable base URL, health checks, persistence).
+**Production architecture contract:** Deploy **WPDA** as your product’s **routing decision service** (not a task orchestrator). In production, run WisePick in your private containers or cloud environment and ensure the agent runtime can reach it reliably (stable base URL, health checks, persistence).
 
-**生产环境架构契约：** 将 **WPDA** 作为产品的**路由决策服务**部署（非任务编排引擎）。在生产环境，您须将 WisePick 服务部署在私有容器/云环境中，并确保 Agent 运行时可稳定访问该 API。
+**生产环境架构契约：** 将 **WPDA** 作为产品的**路由决策服务**部署（非任务编排引擎）。在生产环境，您应将 WisePick 服务部署在私有容器/云环境中，并确保 Agent 运行时可稳定访问该 API。
 
 **Data sovereignty and evolution:** Execution feedback and the learning loop depend on **persisted decision records** on your WPDA host (`DATABASE_URL`). That store is the on-ramp to collective decision memory; the long-term **Execution Experience Network** vision is evolutionary—not a separate product you deploy today.
 
 **关于数据主权与演进：** 执行反馈与学习闭环依赖您 WPDA 生产环境中的持久化决策记录。该存储是集体决策记忆的起点；长期**执行经验网络**愿景为演进方向，而非当前需单独部署的网络产品。
 
-**Local bootstrap (logic validation only):** Configure `DATABASE_URL` in `.env` (see [.env.example](./.env.example)), then `uvicorn app.main:app --reload`. Smoke: `curl -s http://localhost:8000/health`.
+**Local bootstrap (logic validation only):** Configure `DATABASE_URL` in `.env` (see [.env.example](./.env.example)), then run `uvicorn app.main:app --reload`. Smoke check: `curl -s http://localhost:8000/health`.
 
 **本地启动（仅逻辑验证）：** 配置 `.env` 中的 `DATABASE_URL` 后运行 `uvicorn`；通过 `/health` 确认服务可用。
 
@@ -44,13 +49,13 @@ Wire [`wisepick/client.py`](./wisepick/client.py) into your Agent completion pat
 from wisepick import WisePickClient
 
 wp = WisePickClient(api_url="https://api.wishweaver.top")  # hosted default; or your self-hosted base URL
-```
+````
 
 Keep one instance per process (or per session factory). Point `api_url` at your self-hosted WisePick base (no trailing slash required).
 
-### Step 2 — Hard-route the first LLM completion
+### Step 2 — Decide before the first completion
 
-Call `inject_openai_choice` **immediately before** the first provider `chat.completions` (or compatible) request for the turn. It POSTs `/v1/decide` and, when ECU is valid, sets OpenAI-shaped `tool_choice` from `capability_id`.
+Call `inject_openai_choice` immediately before the first provider `chat.completions` (or compatible) request for the turn. It POSTs `/v1/decide` and, when ECU is valid, sets OpenAI-shaped `tool_choice` from `capability_id`.
 
 ```python
 user_task = "Transcribe today's meeting audio"
@@ -87,15 +92,14 @@ ecu = wp.decide(user_task)
 
 `tool_choice.function.name` must equal an entry in `tools[].function.name`. WisePick ranks by **`capability_id`** (semantic capability), not marketing product names.
 
-| OpenAI / MCP `function.name` | WisePick `capability_id` | Local handler |
-| --- | --- | --- |
-| `audio_transcription` | `audio_transcription` | `transcribe_audio(provider, …)` |
-| `search_files` | `search_files` | MCP tool `search_files` |
+| OpenAI / MCP `function.name` | WisePick `capability_id` | Local handler                   |
+| ---------------------------- | ------------------------ | ------------------------------- |
+| `audio_transcription`        | `audio_transcription`    | `transcribe_audio(provider, …)` |
+| `search_files`               | `search_files`           | MCP tool `search_files`         |
 
-Note that this protocol alignment holds true regardless of how tools are gathered. WisePick decouples routing from discovery; your runtime can load tools statically or query an MCP server dynamically, but it must map those discovered payloads to stable `capability_id` strings before hitting the decision layer.
-请注意，无论工具是如何加载的，此协议对齐均有效。智选将路由与发现解耦：您的运行时可以静态加载工具，也可以动态查询 MCP 服务，但在进入决策层之前，必须将这些发现的能力映射为稳定的 `capability_id` 字符串。
+WisePick decouples routing from discovery. Your runtime can load tools statically or query an MCP server dynamically, but it must map discovered tool payloads to stable `capability_id` strings before hitting the decision layer.
 
-**Rule:** Register tools under **`capability_id` strings** WisePick emits. Use `provider` + `execution_type` inside your executor to pick credentials, endpoint, or MCP server—not as the forced function name.
+**Rule:** register tools under the **`capability_id` strings** WisePick emits. Use `provider` + `execution_type` inside your executor to pick credentials, endpoint, or MCP server—not as the forced function name.
 
 ```python
 EXECUTORS = {
@@ -110,9 +114,9 @@ def run_tool(ecu: dict, task: str):
     return fn(ecu["provider"], task)
 ```
 
-Mismatch → model cannot call the forced function → fall back to Step 4 or fix the registry.
+Mismatch → the model cannot call the forced function → fall back to Step 4 or fix the registry.
 
-### Step 4 — Multi-turn: release after the first completion
+### Step 4 — Release after the first completion
 
 WisePick routing applies to **turn entry** (first completion). Later completions in the same turn should not keep a forced tool.
 
@@ -137,14 +141,14 @@ After your tool/MCP handler finishes (success or failure), call `feedback` with 
 ```python
 def on_tool_finished(ecu: dict, *, ok: bool, latency_ms: int, actual_tool: str | None = None, err: str | None = None):
     did = ecu.get("decision_id")
-    if not did or ecu.get("callable") is False:
+    if not did:
         return
     wp.feedback(
         did,
         success=ok,
         latency_ms=latency_ms,
         error_message=err,
-        token_usage={"input": 1200, "output": 450},
+        token_cost={"input": 1200, "output": 450},
         result_quality=0.92 if ok else None,
         actual_tool_used=actual_tool,
     )
@@ -176,16 +180,20 @@ Feedback
 
 Runtime requirements:
 
-- Call `/v1/decide` before execution.
-- Persist the returned `decision_id`.
-- After execution, call `/v1/feedback`.
-- Include:
-  - `decision_id`
-  - `success`
-  - `latency_ms`
-- Recommended:
-  - `runtime_name`
-  - `actual_tool_used`
+* Call `/v1/decide` before execution.
+* Persist the returned `decision_id`.
+* After execution, call `/v1/feedback`.
+* Include:
+
+  * `decision_id`
+  * `success`
+  * `latency_ms`
+* Recommended:
+
+  * `runtime_name`
+  * `actual_tool_used`
+  * `token_cost`
+  * `result_quality`
 
 When `callable=false`, the runtime may execute its own fallback tool.
 
@@ -193,8 +201,8 @@ Feedback should still be submitted using the original `decision_id`.
 
 WisePick will associate:
 
-- Recommended tool → decision record
-- Actual executed tool → runtime observation record
+* Recommended tool → decision record
+* Actual executed tool → runtime observation record
 
 This enables real-world ROI learning.
 
@@ -202,17 +210,17 @@ This enables real-world ROI learning.
 
 ## HTTP Surface (reference)
 
-| Method | Path | Role |
-| --- | --- | --- |
-| GET | `/health` | Liveness |
-| GET | `/v1/analytics/summary` | Operator usage snapshot (totals, closure rate, pooled ROI) |
-| GET | `/v1/analytics/dashboard` | **Operator entry point** — summary + 7-day volume + top runtime |
-| GET | `/v1/analytics/providers` | Per-provider stats from `tool_stats` |
-| GET | `/v1/analytics/runtimes` | Per-runtime stats from self-reported `runtime_name` |
-| GET | `/v1/analytics/timeline` | Daily decide/feedback counts (UTC) |
-| GET | `/v1/analytics/attribution` | Recommended vs `actual_tool_used` feedback breakdown |
-| POST | `/v1/decide` | Task → ECU |
-| POST | `/v1/feedback` | Outcome → stats |
+| Method | Path                        | Role                                                        |
+| ------ | --------------------------- | ----------------------------------------------------------- |
+| GET    | `/health`                   | Liveness                                                    |
+| GET    | `/v1/analytics/summary`     | Operator usage snapshot (totals, closure rate, pooled ROI)  |
+| GET    | `/v1/analytics/dashboard`   | Operator entry point — summary + 7-day volume + top runtime |
+| GET    | `/v1/analytics/providers`   | Per-provider stats from `tool_stats`                        |
+| GET    | `/v1/analytics/runtimes`    | Per-runtime stats from self-reported `runtime_name`         |
+| GET    | `/v1/analytics/timeline`    | Daily decide/feedback counts (UTC)                          |
+| GET    | `/v1/analytics/attribution` | Recommended vs `actual_tool_used` feedback breakdown        |
+| POST   | `/v1/decide`                | Task → ECU                                                  |
+| POST   | `/v1/feedback`              | Outcome → stats                                             |
 
 **Operator usage (read-only):** `curl -s http://localhost:8000/v1/analytics/dashboard` — single operator entry point for adoption, closure rate, provider/runtime leaders, and recent volume.
 
@@ -239,7 +247,7 @@ This enables real-world ROI learning.
 }
 ```
 
-When `feedback.runtime_name` is not migrated yet, `active_runtimes` is `0`, `top_runtime` is `null`, and `top_runtime_feedback_count` is `0`.
+If `feedback.runtime_name` has not been migrated yet, `active_runtimes` is `0`, `top_runtime` is `null`, and `top_runtime_feedback_count` is `0`.
 
 ### POST `/v1/decide`
 
@@ -253,7 +261,7 @@ When `feedback.runtime_name` is not migrated yet, `active_runtimes` is `0`, `top
 
 **ECU fields (integrate against these):** `decision_id`, `capability_id`, `provider`, `execution_type` (`api` | `mcp` | `function_call`), `callable`, `confidence`, `reason`, `explain`, `trace`. Legacy `tool_key` mirrors `provider`.
 
-When **`callable` is `false`**, WisePick found no matching capability in the registry. **`provider`**, **`tool_key`**, and **`capability_id` are empty strings**; **`reason`** is `"No matching capability found"`; **`explain.no_match`** is `true`. **Do not** force `tool_choice` — let your runtime fallback. No row is written to `decisions` for no-match responses (no `decision_id` for feedback on that path unless you replan and decide again).
+When **`callable` is `false`**, WisePick found no matching capability in the registry. The API still returns a **persistent `decision_id`** backed by a `fallback_unknown` anchor so that feedback and runtime execution observations can still be linked later. **`provider`**, **`tool_key`**, and **`capability_id`** are empty strings in the response for compatibility; **`reason`** is `"No matching capability found"`; **`explain.no_match`** is `true`. Do not force `tool_choice` — let your runtime fallback.
 
 ### POST `/v1/feedback`
 
@@ -265,15 +273,18 @@ When **`callable` is `false`**, WisePick found no matching capability in the reg
   "token_cost": { "input": 1200, "output": 450 },
   "result_quality": 0.92,
   "actual_tool_used": "browser_navigate",
+  "runtime_name": "hermes",
   "user_note": "optional free-text error or context"
 }
 ```
 
 `latency_ms` is required. Use `token_cost` and `result_quality` for ROI aggregates (`avg_token_cost`, `avg_result_quality`); do not embed them in `user_note`.
 
-**`tool_key` (request body, optional):** when sent, must match the decision’s recommended `selected_tool_key` (audit). **`actual_tool_used` (optional):** the tool/MCP your runtime **actually executed**. When set, **`tool_stats` ROI metrics** (`success_rate`, `avg_latency_ms`, etc.) attribute to **`actual_tool_used`**, not the recommended provider. Omit for backward-compatible behavior (ROI stays on the recommended tool).
+* `tool_key` (optional audit field): if sent, it must match the decision’s recommended `selected_tool_key`.
+* `actual_tool_used` (optional): the tool/MCP your runtime **actually executed**. When set, ROI attribution should follow the actual executed tool rather than the recommended tool.
+* `runtime_name` (optional): self-label for usage analytics only.
 
-### Runtime Attribution (Optional)
+### Runtime Attribution
 
 Runtimes may self-label feedback for usage analytics only:
 
@@ -288,13 +299,15 @@ Runtimes may self-label feedback for usage analytics only:
 
 This field is **optional**. Existing feedback requests without `runtime_name` continue to work unchanged.
 
-- Used only for usage analytics (`GET /v1/analytics/runtimes`, `active_runtimes` in summary).
-- No authentication required.
-- No impact on routing, billing, or quotas.
+* Used only for usage analytics (`GET /v1/analytics/runtimes`, `active_runtimes` in summary).
+* No authentication required.
+* No impact on routing, billing, or quotas.
 
 Apply `scripts/migrate_runtime_name.sql` on Supabase/PostgreSQL before persisting or querying runtime attribution.
 
 Apply `scripts/migrate_actual_tool_used.sql` before persisting or querying `actual_tool_used` and the updated `tool_stats` view.
+
+Apply `scripts/migrate_fallback_unknown.sql` when upgrading an existing database so the `fallback_unknown` anchor exists in `api_tool_specs`.
 
 ### Errors
 
@@ -302,10 +315,10 @@ Apply `scripts/migrate_actual_tool_used.sql` before persisting or querying `actu
 { "error": "error_type", "message": "Human-readable description" }
 ```
 
-| `error` | HTTP | When |
-| --- | --- | --- |
-| `invalid_request` | 422 | Validation / no matching tools (`ValueError` from router) |
-| `persistence_failed` | 500 | Decision log could not be persisted (no ghost `decision_id`) |
+| `error`              | HTTP | When                                                      |
+| -------------------- | ---- | --------------------------------------------------------- |
+| `invalid_request`    | 422  | Validation / no matching tools (`ValueError` from router) |
+| `persistence_failed` | 500  | Decision log could not be persisted                       |
 
 ```json
 { "error": "persistence_failed", "message": "Failed to persist decision log" }
@@ -319,28 +332,28 @@ See [.env.example](./.env.example) for the full list.
 
 ### Agent / integrator runtime (consumer of WisePick)
 
-| Variable | Required | Default | Role |
-| --- | --- | --- | --- |
-| `WISEPICK_API_URL` | recommended | `https://api.wishweaver.top` | Base URL for `WisePickClient` / HTTP adapter |
-| `WISEPICK_DECIDE_URL` | optional | `{WISEPICK_API_URL}/v1/decide` | Full decide endpoint override (Hermes-style routers) |
-| `HERMES_WISEPICK_ROUTING` | optional | `1` | `1`/`true` → enable decide + first-completion injection (Hermes integrations) |
-| `WISEPICK_FORCE_TOOL` | optional | — | Test/dry-run: skip HTTP; force tool name (must exist in `tool_capability_map`) |
-| `HERMES_WISEPICK_FORCE_TOOL` | optional | — | Hermes alias of `WISEPICK_FORCE_TOOL` |
+| Variable                     | Required    | Default                        | Role                                                                           |
+| ---------------------------- | ----------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| `WISEPICK_API_URL`           | recommended | `https://api.wishweaver.top`   | Base URL for `WisePickClient` / HTTP adapter                                   |
+| `WISEPICK_DECIDE_URL`        | optional    | `{WISEPICK_API_URL}/v1/decide` | Full decide endpoint override (Hermes-style routers)                           |
+| `HERMES_WISEPICK_ROUTING`    | optional    | `1`                            | `1`/`true` → enable decide + first-completion injection (Hermes integrations)  |
+| `WISEPICK_FORCE_TOOL`        | optional    | —                              | Test/dry-run: skip HTTP; force tool name (must exist in `tool_capability_map`) |
+| `HERMES_WISEPICK_FORCE_TOOL` | optional    | —                              | Hermes alias of `WISEPICK_FORCE_TOOL`                                          |
 
 Set `WISEPICK_API_URL` in deployment manifests; map `tool_capability_map` from the agent’s live tool list before enabling routing (see [AGENTS.md](./AGENTS.md) `wisepick.agent.v1`).
 
 ### WisePick API host (server process)
 
-| Variable | Required on host | Role |
-| --- | --- | --- |
-| `DATABASE_URL` | yes | PostgreSQL / Supabase for decisions, feedback, and `tool_stats` |
-| `YANTRIK_DB_URL` | no | Cluster health plugin for `/v1/decide` score penalty |
-| `YANTRIK_DB_API_KEY` | no | Bearer token for YantrikDB health |
-| `WISEPICK_LANGFUSE_PUBLIC_KEY` | no | Telemetry (`mcp.route_decision.v1`) |
-| `WISEPICK_LANGFUSE_SECRET_KEY` | no | Telemetry |
-| `WISEPICK_LANGFUSE_HOST` | no | Langfuse base URL |
-| `WISEPICK_LANGFUSE_OTEL` | no | `true` → OTLP ingestion |
-| `WISEPICK_LANGFUSE_ROUTER_NAME` | no | Contract `router_name` (default `wisepick`) |
+| Variable                        | Required on host | Role                                                            |
+| ------------------------------- | ---------------- | --------------------------------------------------------------- |
+| `DATABASE_URL`                  | yes              | PostgreSQL / Supabase for decisions, feedback, and `tool_stats` |
+| `YANTRIK_DB_URL`                | no               | Cluster health plugin for `/v1/decide` score penalty            |
+| `YANTRIK_DB_API_KEY`            | no               | Bearer token for YantrikDB health                               |
+| `WISEPICK_LANGFUSE_PUBLIC_KEY`  | no               | Telemetry (`mcp.route_decision.v1`)                             |
+| `WISEPICK_LANGFUSE_SECRET_KEY`  | no               | Telemetry                                                       |
+| `WISEPICK_LANGFUSE_HOST`        | no               | Langfuse base URL                                               |
+| `WISEPICK_LANGFUSE_OTEL`        | no               | `true` → OTLP ingestion                                         |
+| `WISEPICK_LANGFUSE_ROUTER_NAME` | no               | Contract `router_name` (default `wisepick`)                     |
 
 ---
 
@@ -378,9 +391,10 @@ decision → execution → feedback → tool_stats → next decision
 ### Components | 核心组件
 
 ```text
-Routing Core (decision_engine)     — task → ECU scoring and selection
+Routing Core (decision_engine)       — task → ECU scoring and selection
 Capability Registry (api_tool_specs) — providers, labels, bootstrap weights
-Execution Memory (tool_stats)      — success rate, latency, token ROI from feedback
+Execution Memory (tool_stats)        — success rate, latency, token ROI from feedback
+Runtime Observation (observed_tools)  — actual runtime tool usage history
 ```
 
 ---
@@ -403,33 +417,33 @@ Thin bridges: WisePick `decide` / `feedback`; your runtime executes. Pattern: [d
 
 Maps ECU → `FlowExecutor.execute_flow`; explicit `capability_id` → `(flow_id, flow_version)` table only.
 
-- Module: [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py)
-- Types: `ChainWeaverAdapter`, `RoutingDecision` (`flow_id`, `flow_version`, `confidence`, `reasoning`)
-- Entry: `select_and_execute(user_request)` or `route()` for decide-only
+* Module: [`adapters/chainweaver_adapter.py`](./adapters/chainweaver_adapter.py)
+* Types: `ChainWeaverAdapter`, `RoutingDecision` (`flow_id`, `flow_version`, `confidence`, `reasoning`)
+* Entry: `select_and_execute(user_request)` or `route()` for decide-only
 
 ### SafeAgent
 
 Maps ECU → idempotent `request_id` + SafeAgent `runtime.execute`; closes feedback with ROI `user_note`.
 
-- Module: [`adapters/safeagent_adapter.py`](./adapters/safeagent_adapter.py)
-- Types: `SafeAgentAdapter`, `SafeAgentRoutingDecision`
-- Requires `session_id`, `turn_id` (and orchestrator `start_time_ms` for distributed idempotency)
+* Module: [`adapters/safeagent_adapter.py`](./adapters/safeagent_adapter.py)
+* Types: `SafeAgentAdapter`, `SafeAgentRoutingDecision`
+* Requires `session_id`, `turn_id` (and orchestrator `start_time_ms` for distributed idempotency)
 
 ### Aetheris (experimental)
 
 Maps `DecideResponse` → `AetherisRouteEvidence` for durable evidence stores (no HTTP in adapter).
 
-- Module: [`adapters/aetheris_adapter.py`](./adapters/aetheris_adapter.py)
-- Type: `AetherisRoutingAdvisor` → `to_evidence()`
-- Replay semantics (skip re-decide on replay): [AGENTS.md](./AGENTS.md#durable-execution-replay-semantics)
+* Module: [`adapters/aetheris_adapter.py`](./adapters/aetheris_adapter.py)
+* Type: `AetherisRoutingAdvisor` → `to_evidence()`
+* Replay semantics (skip re-decide on replay): [AGENTS.md](./AGENTS.md#durable-execution-replay-semantics)
 
 ### THYMOS (OpenThymos)
 
 Maps ECU → `RoutingEvidence`; attaches `routing_evidence` on outer `Proposal` per OpenThymos Proposal Contract v1 Option 2 (outside `ProposalBody`; no HTTP in adapter).
 
-- Module: [`adapters/thymos_adapter.py`](./adapters/thymos_adapter.py)
-- Types: `FallbackHint`, `RoutingEvidence`, `ThymosRoutingAdvisor`
-- Entry: `ThymosRoutingAdvisor(...).to_evidence()` then `attach_routing_evidence_to_proposal(proposal_envelope, evidence)`
+* Module: [`adapters/thymos_adapter.py`](./adapters/thymos_adapter.py)
+* Types: `FallbackHint`, `RoutingEvidence`, `ThymosRoutingAdvisor`
+* Entry: `ThymosRoutingAdvisor(...).to_evidence()` then `attach_routing_evidence_to_proposal(proposal_envelope, evidence)`
 
 ### Examples
 
@@ -442,6 +456,9 @@ Maps ECU → `RoutingEvidence`; attaches `routing_evidence` on outer `Proposal` 
 ```bash
 pip install -r requirements.txt
 # configure DATABASE_URL in .env
-# Existing Supabase/PostgreSQL DB: run scripts/migrate_v0_2_2.sql first (see docs/MIGRATION_v0_2_2.md)
+# Existing Supabase/PostgreSQL DB: run scripts/migrate_v0_2_2.sql first if you still use legacy schema
+# Then apply scripts/migrate_fallback_unknown.sql, scripts/migrate_runtime_name.sql, and scripts/migrate_actual_tool_used.sql
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+````

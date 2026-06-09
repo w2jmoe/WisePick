@@ -385,18 +385,18 @@ WisePick turns execution outcomes into reusable routing experience — the found
 ## 🗺️ Roadmap | 路线图
 
 - **✅ v0.1**: Core Infrastructure · 核心路由与反馈闭环
-  - Deterministic ECU routing & feedback loop.
-  - Multi-dimensional ROI metrics aggregation (Latency / Cost / Quality).
+  - Deterministic routing.
+  - Feedback & ROI foundation.
+
 - **🔄 v0.2**: Runtime-Aware Optimization · Runtime 感知执行优化
-  - Hosted Shared Feedback Pool MVP (v0.2.2).
-  - Runtime registry alignment (`api_tool_specs` → `tool_stats`).
-  - Feedback idempotency & decision persistence safety.
-  - Task-level capability routing for multi-agent runtimes.
-  - Adaptive execution-path optimization based on latency / cost / quality feedback.
-  - Lightweight integration adapters for orchestration frameworks.
+  - Shared Feedback Pool.
+  - Runtime execution learning.
+  - Adaptive optimization.
+
 - **🔄 v0.3**: Collective Decision Memory · 集体决策记忆
-  - Cross-agent experience sharing (Execution Experience Network direction).
-  - Global capability indexing & optimization.
+  - Cross-agent experience sharing.
+  - Capability indexing.
+  - Experience-informed routing.
 
 ---
 
